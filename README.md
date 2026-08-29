@@ -49,6 +49,14 @@ Open items requiring on-site verification:
 
 ---
 
+## ⚠️ Known architectural risk: no self-recovery if Boot Order breaks during the flash
+
+The actual firmware write happens during POST on the reboot right after the flash command (see `docs/HP-ProBook-BIOS-Flash-Full-Script.md` → "When does the flash actually happen?"). If Boot Order gets reset to factory defaults at that exact point — a known issue reported on HP's own forums — the machine may not come back to WinPE from the USB drive at all on that reboot.
+
+Since the script only lives on that same USB drive, it cannot restart itself to fix this if the machine boots the internal disk instead. The Step 1 check (Fast Boot/Boot Order verified *before* the flash) is the only real protection going into that risky reboot — there's currently no automated recovery path if Boot Order breaks anyway. If this happens on-site, it needs manual intervention (F9 boot menu) for that specific machine; no code change can fully rule it out short of confirming through real testing that this specific BIOS update doesn't reset Boot Order.
+
+---
+
 ## What the script does
 
 The pipeline glues together three scripts:

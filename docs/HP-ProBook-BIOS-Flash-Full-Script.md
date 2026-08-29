@@ -28,7 +28,7 @@ Conceptually the script runs in three phases:
 
 `HPBIOSUPDREC64.exe` (silent mode) does **not** write the new firmware to the BIOS chip while it's running in Windows/WinPE — it stages the update and reboots the machine, and the actual flash write happens **during POST on the next boot**. On systems with HP Sure Start, the update may also trigger **more than one reboot** — the final one is where Sure Start stores a backup copy of the BIOS and security settings.
 
-This matters for the script's Step 4 (boot-settings check right after the flash command, before `shutdown`): at that point the BIOS is still the **old** one — the check is a cheap safety net, not proof the new BIOS came up correctly. The authoritative check only happens in `:after_flash_confirmed`, after the reboot(s), once the version has actually changed.
+This is why the script doesn't bother re-checking Fast Boot/Boot Order right after the flash command, before `shutdown` — at that point the BIOS is still the **old** one (nothing has changed since Step 1's check yet), so it would just be a no-op. The only check that matters happens in `:after_flash_confirmed`, after the reboot(s), once the version has actually changed.
 
 The attempt-counter loop (up to 3 attempts, tracked per machine serial) already tolerates an extra Sure Start reboot fine — it just re-checks the version on each subsequent run of the script.
 
@@ -165,19 +165,11 @@ call :SetStage "Flash command finished (exit !errorlevel!), see %FLASH_LOG% for 
 
 
 REM ============================================
-REM  STEP 4: check boot settings AFTER the flash command, BEFORE reboot
-REM  NOTE: the actual firmware write happens during POST on the next boot,
-REM  not while HPBIOSUPDREC64.exe is running - so this still reads/fixes the
-REM  OLD BIOS. It's a cheap safety net, not proof the new BIOS is correct;
-REM  the authoritative check is in :after_flash_confirmed, after reboot.
-REM ============================================
-call :SetStage "Re-checking boot settings after flash command, before reboot"
-call :CheckAndFixSimpleSetting "Fast Boot" "Disable"
-call :CheckAndFixBootOrder
-
-
-REM ============================================
-REM  STEP 5: reboot
+REM  STEP 4: reboot
+REM  NOTE: no boot-settings re-check here - the actual firmware write only
+REM  happens during POST on this reboot, not while HPBIOSUPDREC64.exe was
+REM  running, so nothing has changed since Step 1's check. The authoritative
+REM  check is in :after_flash_confirmed, once the reboot has happened.
 REM ============================================
 call :SetStage "Rebooting in 5 sec to apply flash..."
 shutdown /r /t 5
@@ -432,13 +424,10 @@ If there have already been 3 failed attempts and the version still hasn't change
 ### Step 5. The flash itself
 The attempt counter is incremented and saved to the file **before** the flash runs (in case the flash itself hangs). The flash utility is then run in silent mode, logging to a separate file.
 
-### Step 6. Check boot settings RIGHT AFTER the flash command, BEFORE reboot
-A repeat check of Fast Boot and Boot Order. Note: the actual firmware write happens during POST on the *next* boot, not while `HPBIOSUPDREC64.exe` is running — so this check still reads/fixes the **old** BIOS. It's a cheap safety net, not proof the new BIOS is correct (see "When does the flash actually happen?" above).
+### Step 6. Reboot
+A required step — the new firmware only activates after a reboot; the actual flash write happens during POST on this reboot, not before (see "When does the flash actually happen?" above), so there's no boot-settings check between the flash command and this point — nothing would have changed yet. The script ends **this particular run**. Restarting the script after the reboot must be handled by an external mechanism (an MDT/SCCM Task Sequence step, a `RunOnce` registry entry, or logic in `unattendx.xml`).
 
-### Step 7. Reboot
-A required step — the new firmware only activates after a reboot. The script ends **this particular run**. Restarting the script after the reboot must be handled by an external mechanism (an MDT/SCCM Task Sequence step, a `RunOnce` registry entry, or logic in `unattendx.xml`).
-
-### Step 8. Re-running after reboot
+### Step 7. Re-running after reboot
 The whole process repeats from the top (Step 1), but now `attempt` is read from the file as `1` instead of `0`. The BIOS version is checked again — if the flash succeeded, the script goes to the final block, skipping another flash. If the version still doesn't match, the loop repeats until it succeeds or the 3 attempts run out.
 
 ### Final block: `:after_flash_confirmed`

@@ -98,19 +98,11 @@ call :SetStage "Flash command finished (exit !errorlevel!), see %FLASH_LOG% for 
 
 
 REM ============================================
-REM  STEP 4: check boot settings AFTER the flash command, BEFORE reboot
-REM  NOTE: the actual firmware write happens during POST on the next boot,
-REM  not while HPBIOSUPDREC64.exe is running - so this still reads/fixes the
-REM  OLD BIOS. It's a cheap safety net, not proof the new BIOS is correct;
-REM  the authoritative check is in :after_flash_confirmed, after reboot.
-REM ============================================
-call :SetStage "Re-checking boot settings after flash command, before reboot"
-call :CheckAndFixSimpleSetting "Fast Boot" "Disable"
-call :CheckAndFixBootOrder
-
-
-REM ============================================
-REM  STEP 5: reboot
+REM  STEP 4: reboot
+REM  NOTE: no boot-settings re-check here - the actual firmware write only
+REM  happens during POST on this reboot, not while HPBIOSUPDREC64.exe was
+REM  running, so nothing has changed since Step 1's check. The authoritative
+REM  check is in :after_flash_confirmed, once the reboot has happened.
 REM ============================================
 call :SetStage "Rebooting in 5 sec to apply flash..."
 shutdown /r /t 5

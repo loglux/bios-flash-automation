@@ -49,11 +49,13 @@ Open items requiring on-site verification:
 
 ---
 
-## ⚠️ Known architectural risk: no self-recovery if Boot Order breaks during the flash
+## ⚠️ Confirmed risk: no self-recovery if Boot Order breaks during the flash
 
-The actual firmware write happens during POST on the reboot right after the flash command (see `docs/HP-ProBook-BIOS-Flash-Full-Script.md` → "When does the flash actually happen?"). If Boot Order gets reset to factory defaults at that exact point — a known issue reported on HP's own forums — the machine may not come back to WinPE from the USB drive at all on that reboot.
+**This has been directly observed, not just reported on forums** — see `docs/Boot-Order-Reset-Risk.md` for the full write-up. Manual reproduction: Fast Boot and Boot Order both set correctly and confirmed holding through a normal reboot; after running the flash and rebooting again, Fast Boot stayed disabled but Boot Order reset to default, and since the disk already had a working Windows install, the machine booted straight into Windows instead of back into WinPE.
 
-Since the script only lives on that same USB drive, it cannot restart itself to fix this if the machine boots the internal disk instead. The Step 1 check (Fast Boot/Boot Order verified *before* the flash) is the only real protection going into that risky reboot — there's currently no automated recovery path if Boot Order breaks anyway. If this happens on-site, it needs manual intervention (F9 boot menu) for that specific machine; no code change can fully rule it out short of confirming through real testing that this specific BIOS update doesn't reset Boot Order.
+The actual firmware write happens during POST on the reboot right after the flash command (see `docs/HP-ProBook-BIOS-Flash-Full-Script.md` → "When does the flash actually happen?"), and that's where Boot Order resets. Since the script only lives on the USB drive, it cannot restart itself to fix this if the machine boots the internal disk instead — its final-block re-check never gets a chance to run. The Step 1 check (Fast Boot/Boot Order verified *before* the flash) is the only real protection going into that risky reboot.
+
+Machines with a blank/unimaged disk are expected to be unaffected (no competing OS to boot into — see the doc for why). For machines with an existing OS on disk, this is a real, confirmed gap. A mitigation is proposed (a one-time `BootNext` override via `bcdedit`, found dynamically per machine — not hardcoded) but **not yet implemented**, pending on-site testing of whether it actually survives the same reset. See `docs/Boot-Order-Reset-Risk.md` for details.
 
 ---
 

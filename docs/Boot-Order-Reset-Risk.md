@@ -45,37 +45,42 @@ UEFI exposes two separate boot-related NVRAM variables:
 - `BootOrder` — the persistent priority list. This is what resets.
 - `BootNext` — a one-time override for the *next* boot only, auto-cleared once consumed. Separate variable from `BootOrder`.
 
-Setting `BootNext` is a fully automated, per-machine lookup — no manual GUID entry anywhere. The script finds the USB entry's GUID at runtime the same way it already finds the USB line in `BootOrder` (by keyword match), then sets `BootNext` to it.
+Setting `BootNext` is a fully automated, per-machine lookup — no manual GUID entry anywhere.
 
-**Confirmed real output format** of `bcdedit /enum firmware` (from Microsoft docs / community examples):
-```
-Firmware Boot Manager
----------------------
-identifier              {fwbootmgr}
-displayorder            {bootmgr}
-                        {93cee840-f524-11db-af62-aa767141e6b3}
-timeout                 2
+### Real-hardware test (2026-08-29, ordinary Windows PC, not a ProBook)
 
-Windows Boot Manager
----------------------
-identifier              {bootmgr}
-device                  partition=...
-path                    ...
-description             Windows Boot Manager
+Ran `bcdedit /enum firmware` (admin Command Prompt) at three points:
+1. **No USB drive attached:** only `Firmware Boot Manager` and `Windows Boot Manager` entries — as expected.
+2. **A plain, non-bootable USB drive plugged in:** no change. Expected — the firmware only lists devices with a valid EFI bootloader on them, not just any attached media.
+3. **A genuinely UEFI-bootable USB drive (built with AOMEI Partition Assistant) plugged in — without rebooting:** two new entries appeared immediately:
+   ```
+   Firmware Application (101fffff)
+   -------------------------------
+   identifier              {d5041891-a3e9-11f1-b549-806e6f6e6963}
+   device                  partition=F:
+   description             UEFI: SanDisk Extreme Pro 0, Partition 1
+   isolatedcontext         Yes
 
-EFI USB Device
----------------------
-identifier              {08dec067-564c-11ee-a2b4-644ed7879b0e}
-device                  ...
-description             EFI USB Device
-```
-Each entry is its own block; `identifier` appears before `description` within the same block, both flush-left, space-separated. This confirms the parsing approach below — not yet tested against this specific WinPE's actual output, though.
+   Firmware Application (101fffff)
+   -------------------------------
+   identifier              {d5041892-a3e9-11f1-b549-806e6f6e6963}
+   device                  partition=G:
+   description             UEFI: SanDisk Extreme Pro 0, Partition 2
+   isolatedcontext         Yes
+   ```
 
-### Code to add
+**Two findings, one good, one requiring a fix (already applied below):**
 
-New subroutine, next to `:CheckAndFixBootOrder`:
+- **Good news:** no reboot was needed — Windows discovers bootable EFI applications on currently-attached media live, at least on this PC's firmware. This weakens (doesn't fully settle — see "Still open" below) the UEFI-spec concern that removable-media boot options might never appear in this list at all.
+- **Bug found:** the `description` field does **not** reliably contain the word "USB" — it showed the drive's brand/model instead (`"UEFI: SanDisk Extreme Pro 0, Partition N"`). The original design (`findstr "^description.*USB"`) would have found nothing on this real example and silently skipped every time. Matching on brand/model name was considered and rejected — it would tie the script to whatever USB drive model happens to be in use today, breaking silently if the fleet ever switches drive models (the same per-drive coupling concern raised earlier in this project for other mechanisms).
+
+**Fix applied:** match by the script's **own drive letter** instead — `identifier` still appears before `device` within each block (confirmed again by this real output), and `device partition=X:` gives an exact, assumption-free match: whatever drive the script is currently running from, found via `%~d0` (batch syntax for "the drive letter of the currently executing script").
+
+### Code (already in `scripts/HP-ProBook-Flash-And-Configure.WithBootNext.bat`)
+
 ```bat
 :SetBootNextUSB
+set "mydrive=%~d0"
 set "fwdump=%TMPDIR%\firmware.txt"
 bcdedit /enum firmware > "%fwdump%" 2>nul
 
@@ -86,40 +91,30 @@ for /f "usebackq delims=" %%L in ("%fwdump%") do (
     echo !line! | findstr /i "^identifier" >nul && (
         for /f "tokens=2" %%I in ("!line!") do set "current_id=%%I"
     )
-    echo !line! | findstr /i "^description.*USB" >nul && set "found_id=!current_id!"
+    echo !line! | findstr /i /c:"partition=%mydrive%" >nul && set "found_id=!current_id!"
 )
 
 if not defined found_id (
-    call :SetStage "BootNext: USB entry not found in bcdedit list, skipping"
+    call :SetStage "BootNext: no firmware entry found for drive %mydrive%, skipping"
     goto :eof
 )
 
 bcdedit /bootsequence !found_id! >nul 2>&1
-call :SetStage "BootNext: one-time boot set to !found_id! (USB)"
+call :SetStage "BootNext: one-time boot set to !found_id! (drive %mydrive%)"
 goto :eof
 ```
 
-One call site, in `scripts/HP-ProBook-Flash-And-Configure.bat`, Step 4 — right before the reboot, after the flash command:
-```bat
-call :SetStage "Rebooting in 5 sec to apply flash..."
-shutdown /r /t 5
-```
-becomes:
+Call site — Step 4, right before the reboot, after the flash command:
 ```bat
 call :SetBootNextUSB
 call :SetStage "Rebooting in 5 sec to apply flash..."
 shutdown /r /t 5
 ```
-That's the only call site — it runs once per flash attempt, right before the risky reboot. No other part of the script changes; the existing `BootOrder` fix (Step 1, final block) stays exactly as-is. This is an addition, not a replacement.
+That's the only call site — it runs once per flash attempt, right before the risky reboot. No other part of the script changes; the existing `BootOrder` fix (Step 1, final block) stays exactly as-is. This is an addition, not a replacement. Only the `WithBootNext` script variant has this; the base script doesn't.
 
-### Still unverified — and one real concern found
+### Still open
 
-1. Whether this WinPE's actual `bcdedit /enum firmware` output matches the format above.
-2. Whether `BootNext` actually survives the same reset that wipes `BootOrder` on this specific BIOS update — the core unknown. Only real-hardware testing answers this.
-3. **A more fundamental concern, found in the UEFI Specification itself** (2.11, Boot Manager chapter): boot options the firmware synthesizes for removable media via the standard fallback path (`\EFI\BOOT\BOOTx64.EFI` — how a typical bootable WinPE USB drive boots) are explicitly **not persisted and not added to `BootOrder`**: *"These new boot options must not be saved to non volatile storage, and may not be added to BootOrder."* If that's how this USB drive boots, it may never show up as a distinct entry in `bcdedit /enum firmware` at all — not because of a bug in the script's parsing, but because the spec says such entries aren't meant to exist in that list in the first place. This was **not confirmed or ruled out** by testing `bcdedit /enum firmware` on an ordinary Windows PC with a plain (non-bootable) USB drive plugged in — that test didn't show a new entry either, but for a different, expected reason (see the note below) and doesn't settle point 3.
+1. **Whether this WinPE's actual `bcdedit /enum firmware` output shows an entry for the boot drive at all.** The real-hardware test above is encouraging (live discovery works, no reboot needed) but was on a different, non-HP PC — HP ProBook firmware could behave differently, and the UEFI spec technically doesn't require removable-media boot options to be listed here (see prior note in project history). This is the first thing to check on-site.
+2. **Whether `BootNext` actually survives the same reset that wipes `BootOrder` on this specific BIOS update** — the core unknown this whole mitigation exists to answer. Only real-hardware testing (on the actual ProBook, through an actual flash cycle) answers this.
 
-   Practical implication: before trusting this mitigation, the very first thing to check on real hardware is whether `bcdedit /enum firmware`, run from *inside WinPE while booted from the target USB drive*, shows **any** entry corresponding to that drive at all. If it doesn't, `:SetBootNextUSB` will just log "not found" every time — a safe no-op, but not the safety net intended.
-
-**Command syntax note (fixed):** the code originally used `bcdedit /set {fwbootmgr} bootsequence <id>`, which doesn't match Microsoft's documented syntax. The correct command is the top-level `bcdedit /bootsequence <id>` (see [BCDEdit /bootsequence — Microsoft Learn](https://learn.microsoft.com/en-us/windows-hardware/drivers/devtest/bcdedit--bootsequence)) — already corrected below.
-
-**Decision:** not yet added to the script — code is ready to paste in above, pending a test run to confirm points 2 and 3.
+**Decision:** implemented in the `WithBootNext` script variant, not yet tested through an actual BIOS flash cycle on a ProBook — that's the remaining step before deciding whether to adopt it as the default.

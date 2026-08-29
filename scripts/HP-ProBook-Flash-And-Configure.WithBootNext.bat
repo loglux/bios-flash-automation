@@ -340,10 +340,14 @@ REM ============================================
 REM  One-time BootNext override via bcdedit (EXPERIMENTAL)
 REM  Extra safety net alongside :CheckAndFixBootOrder - not a replacement.
 REM  See docs/Boot-Order-Reset-Risk.md for the rationale and open questions.
-REM  Finds the USB firmware boot entry dynamically (by keyword, same
-REM  approach as BootOrder above) - no hardcoded/manual GUID anywhere.
+REM  Matches by the script's OWN drive letter (device partition=X:), not by
+REM  a keyword in the description - confirmed on real hardware that a real
+REM  USB drive's bcdedit description does NOT reliably contain "USB" (it
+REM  showed as "UEFI: <brand> <model>, Partition N" instead). Drive-letter
+REM  matching needs no assumption about brand/model and works for any drive.
 REM ============================================
 :SetBootNextUSB
+set "mydrive=%~d0"
 set "fwdump=%TMPDIR%\firmware.txt"
 bcdedit /enum firmware > "%fwdump%" 2>nul
 
@@ -354,16 +358,16 @@ for /f "usebackq delims=" %%L in ("%fwdump%") do (
     echo !line! | findstr /i "^identifier" >nul && (
         for /f "tokens=2" %%I in ("!line!") do set "current_id=%%I"
     )
-    echo !line! | findstr /i "^description.*USB" >nul && set "found_id=!current_id!"
+    echo !line! | findstr /i /c:"partition=%mydrive%" >nul && set "found_id=!current_id!"
 )
 
 if not defined found_id (
-    call :SetStage "BootNext: USB entry not found in bcdedit list, skipping"
+    call :SetStage "BootNext: no firmware entry found for drive %mydrive%, skipping"
     goto :eof
 )
 
 bcdedit /bootsequence !found_id! >nul 2>&1
-call :SetStage "BootNext: one-time boot set to !found_id! (USB)"
+call :SetStage "BootNext: one-time boot set to !found_id! (drive %mydrive%)"
 goto :eof
 
 

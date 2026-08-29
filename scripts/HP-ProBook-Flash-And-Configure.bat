@@ -208,7 +208,7 @@ REM ============================================
 REM  Boot Order (ordered list) - pure CMD
 REM ============================================
 :CheckAndFixBootOrder
-set "BOOTSETTING=UEFI Boot Order"
+set "BOOTSETTING=Boot Order"
 set "attempt3=0"
 
 :retry_bootorder

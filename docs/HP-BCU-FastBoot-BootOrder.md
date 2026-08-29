@@ -97,7 +97,7 @@ REM ============================================
 REM  Boot Order (ordered list) - pure CMD
 REM ============================================
 :CheckAndFixBootOrder
-set "BOOTSETTING=UEFI Boot Order"
+set "BOOTSETTING=Boot Order"
 set "attempt=0"
 
 :retry_bootorder
@@ -191,7 +191,7 @@ goto :retry_bootorder
 
 ### `:CheckAndFixBootOrder`
 1. Dumps the **entire** BIOS config to a file via `/GetConfig` (not a single value — all settings at once).
-2. Finds the `UEFI Boot Order` header line, takes the line **right after it** — the first entry in the boot list.
+2. Finds the `Boot Order` header line, takes the line **right after it** — the first entry in the boot list.
 3. If that line contains `USB` — everything is fine, exit.
 4. If not — walks the file line by line, finds the block boundaries (from the header to the first blank line), pulls out the line containing `USB`, moves it to the top of the block, keeps the rest in their original order.
 5. Rewrites `config.txt` and applies it via `/SetConfig`.
@@ -202,6 +202,6 @@ goto :retry_bootorder
 ## Important caveats
 
 - **The `config.txt` format depends on the BCU version and model.** The line-parsing logic (block boundary = blank line, no indentation before device names) is based on the official example in HP's User Guide, but **on your actual ProBook 4 you should manually open `config.txt`** once after `/GetConfig` and confirm the format matches.
-- The setting name can vary between models: `UEFI Boot Order` vs `Legacy Boot Order` vs just `Boot Order` — verify with `/dumpall` or an unfiltered `/GetConfig`.
+- The script uses `Boot Order` — this matches HP's own generic documentation example (see the Full Script doc's Sources), chosen specifically to avoid the misleading impression that "UEFI" here means something about boot mode selection (it doesn't — it's just a section label, and the entry we pick inside it is whichever line contains "USB", i.e. the physical flash drive, regardless of boot mode). The setting name can still vary between models (`Legacy Boot Order`, or something else entirely) — verify with `/dumpall` or an unfiltered `/GetConfig` on-site.
 - The script does **not** check the physical fact that the USB drive is plugged in and detected by the USB controller at POST — that's a separate issue (discussed separately: Legacy Support/CSM, which port, USB 2.0 vs 3.0 controller).
 - Recommended to log every call (`>> log.txt 2>&1`) when used in a real imaging pipeline across many machines.

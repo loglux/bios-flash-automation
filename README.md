@@ -30,7 +30,12 @@ Open items requiring on-site verification:
       (`-s`, `-f`, `-l`, `-a`, `-r`, `-h`, `-b`, `-p`, see Sources below and
       `docs/HP-ProBook-BIOS-Flash-Full-Script.md`); still worth a one-time
       `HPBIOSUPDREC64.exe -?` check on-site to confirm this exact utility version
-- [ ] `config.txt` format for Boot Order on this specific model
+- [ ] `config.txt` format for Boot Order on this specific model — the line-based
+      parsing (block boundary = blank line, no indentation, no `*` marker on
+      list entries) matches HP's own documented example (see Sources), and the
+      setting name is set to `Boot Order` to match it; still needs a one-time
+      `/GetConfig` on the actual machine to confirm the exact section name and
+      entry format on this model/BIOS mode
 - [ ] Mechanism to re-launch the script after reboot (Task Sequence / RunOnce)
 - [ ] Real names/paths for scripts B (Security Settings) and C (dialog + Ghost) —
       currently placeholders `B.bat` / `C.bat` next to the script

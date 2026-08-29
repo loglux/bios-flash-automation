@@ -274,7 +274,7 @@ REM ============================================
 REM  Boot Order (ordered list) - pure CMD
 REM ============================================
 :CheckAndFixBootOrder
-set "BOOTSETTING=UEFI Boot Order"
+set "BOOTSETTING=Boot Order"
 set "attempt3=0"
 
 :retry_bootorder
@@ -464,7 +464,7 @@ The script only reaches this block once the BIOS version is confirmed to match t
 
 - The flash utility's command-line switches need to be verified on-site (see the section above).
 - The `config.txt` format (for Boot Order) depends on the BCU version and model — it's worth manually checking it once after `/GetConfig`.
-- The Boot Order setting name can vary between models (`UEFI Boot Order` / `Legacy Boot Order` / just `Boot Order`).
+- The script uses `Boot Order` as the setting name (matches HP's own documentation example — see Sources above). It can still vary between models/BIOS modes (e.g. `Legacy Boot Order`) — verify with `/dumpall` or an unfiltered `/GetConfig` on-site once the machine is available.
 - For the retry loop to actually work across reboots, an external mechanism to re-launch the script (Task Sequence, RunOnce, etc.) is required — the script does not restart itself.
 - `%SECURITY_SCRIPT%` (script B) and `%FINAL_SCRIPT%` (script C) are placeholders (`B.bat` / `C.bat` next to this script) — plug in the real file names/paths.
 - Fast Boot and Boot Order are **not** part of script B — they were added directly to this script so the pipeline doesn't need someone to manually catch every reboot and re-enter the BIOS boot menu.

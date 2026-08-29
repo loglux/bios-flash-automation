@@ -94,7 +94,7 @@ if not defined found_id (
     goto :eof
 )
 
-bcdedit /set {fwbootmgr} bootsequence !found_id! >nul 2>&1
+bcdedit /bootsequence !found_id! >nul 2>&1
 call :SetStage "BootNext: one-time boot set to !found_id! (USB)"
 goto :eof
 ```
@@ -112,9 +112,14 @@ shutdown /r /t 5
 ```
 That's the only call site — it runs once per flash attempt, right before the risky reboot. No other part of the script changes; the existing `BootOrder` fix (Step 1, final block) stays exactly as-is. This is an addition, not a replacement.
 
-### Still unverified
+### Still unverified — and one real concern found
 
 1. Whether this WinPE's actual `bcdedit /enum firmware` output matches the format above.
 2. Whether `BootNext` actually survives the same reset that wipes `BootOrder` on this specific BIOS update — the core unknown. Only real-hardware testing answers this.
+3. **A more fundamental concern, found in the UEFI Specification itself** (2.11, Boot Manager chapter): boot options the firmware synthesizes for removable media via the standard fallback path (`\EFI\BOOT\BOOTx64.EFI` — how a typical bootable WinPE USB drive boots) are explicitly **not persisted and not added to `BootOrder`**: *"These new boot options must not be saved to non volatile storage, and may not be added to BootOrder."* If that's how this USB drive boots, it may never show up as a distinct entry in `bcdedit /enum firmware` at all — not because of a bug in the script's parsing, but because the spec says such entries aren't meant to exist in that list in the first place. This was **not confirmed or ruled out** by testing `bcdedit /enum firmware` on an ordinary Windows PC with a plain (non-bootable) USB drive plugged in — that test didn't show a new entry either, but for a different, expected reason (see the note below) and doesn't settle point 3.
 
-**Decision:** not yet added to the script — code is ready to paste in above, pending a test run to confirm point 2.
+   Practical implication: before trusting this mitigation, the very first thing to check on real hardware is whether `bcdedit /enum firmware`, run from *inside WinPE while booted from the target USB drive*, shows **any** entry corresponding to that drive at all. If it doesn't, `:SetBootNextUSB` will just log "not found" every time — a safe no-op, but not the safety net intended.
+
+**Command syntax note (fixed):** the code originally used `bcdedit /set {fwbootmgr} bootsequence <id>`, which doesn't match Microsoft's documented syntax. The correct command is the top-level `bcdedit /bootsequence <id>` (see [BCDEdit /bootsequence — Microsoft Learn](https://learn.microsoft.com/en-us/windows-hardware/drivers/devtest/bcdedit--bootsequence)) — already corrected below.
+
+**Decision:** not yet added to the script — code is ready to paste in above, pending a test run to confirm points 2 and 3.

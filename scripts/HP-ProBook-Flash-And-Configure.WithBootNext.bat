@@ -362,7 +362,7 @@ if not defined found_id (
     goto :eof
 )
 
-bcdedit /set {fwbootmgr} bootsequence !found_id! >nul 2>&1
+bcdedit /bootsequence !found_id! >nul 2>&1
 call :SetStage "BootNext: one-time boot set to !found_id! (USB)"
 goto :eof
 

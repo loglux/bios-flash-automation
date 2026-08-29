@@ -24,13 +24,40 @@ Conceptually the script runs in three phases:
 
 ---
 
+## When does the flash actually happen?
+
+`HPBIOSUPDREC64.exe` (silent mode) does **not** write the new firmware to the BIOS chip while it's running in Windows/WinPE — it stages the update and reboots the machine, and the actual flash write happens **during POST on the next boot**. On systems with HP Sure Start, the update may also trigger **more than one reboot** — the final one is where Sure Start stores a backup copy of the BIOS and security settings.
+
+This matters for the script's Step 4 (boot-settings check right after the flash command, before `shutdown`): at that point the BIOS is still the **old** one — the check is a cheap safety net, not proof the new BIOS came up correctly. The authoritative check only happens in `:after_flash_confirmed`, after the reboot(s), once the version has actually changed.
+
+The attempt-counter loop (up to 3 attempts, tracked per machine serial) already tolerates an extra Sure Start reboot fine — it just re-checks the version on each subsequent run of the script.
+
+---
+
 ## ⚠️ Needs finishing on-site
 
-The flash utility switches (`HPBIOSUPDREC64.exe`) in the script below are **not complete** — only `-s` (silent) and `-l` (log) are confirmed. The others (`-r` — no automatic reboot, `-a` — force flash ignoring version check, `-h` — create HP_TOOLS partition, `-b` — suspend BitLocker, `-p` — BIOS password file) need to be verified by running:
+The flash utility switches for `HPBIOSUPDREC64.exe` are documented by HP as:
+```
+HPBIOSUPDREC [-s] [-p PasswordFile] [-fBinaryFile] [-a] [-h] [-b] [-r] [-?]
+```
+- `-s` silent, `-f` path to the `.bin` file, `-l` log path — used in the script below
+- `-a` always flash, ignore version check (silent mode only)
+- `-r` do not reboot
+- `-h` create the HP_TOOLS partition if missing
+- `-b` suspend BitLocker
+- `-p` encrypted BIOS password file (if a BIOS password is set on the machines)
+
+These are confirmed against HP's own documentation (see Sources below), but it's still worth running:
 ```
 HPBIOSUPDREC64.exe -?
 ```
-on the actual USB drive, and plugged into the TODO-marked line.
+on the actual USB drive once, to confirm this exact utility version matches — and to decide whether `-p`/`-h`/`-b` are needed for these specific machines.
+
+**Sources:**
+- [Updating BIOS Command Lines — HP Support Community](https://h30434.www3.hp.com/t5/Commercial-PC-Software/Updating-BIOS-Command-Lines/td-p/6518162)
+- [BIOS Flash Update (HP PDF)](https://h30434.www3.hp.com/psg/attachments/psg/Business-PC-Workstation-POS/34410/1/BIOS%20Flash%20Update.pdf)
+- [How to Update HP BIOS on Commercial Platforms — HP Developer Portal](https://developers.hp.com/hp-client-management/blog/how-update-hp-bios-commercial-platforms)
+- [650 G1: Silent BIOS Update With No Automatic Reboot? — HP Support Community](https://h30434.www3.hp.com/t5/Commercial-PC-Software/650-G1-Silent-BIOS-Update-With-No-Automatic-Reboot/td-p/5071561)
 
 ---
 
@@ -50,11 +77,14 @@ set "TMPDIR=%~dp0temp"
 if not exist "%TMPDIR%" mkdir "%TMPDIR%"
 
 REM --- BIOS flash ---
-REM TODO: verify via "HPBIOSUPDREC64.exe -?" on the actual USB drive:
-REM       confirmed: -s (silent), -l (log path)
-REM       unconfirmed: -r (no reboot), -a (always flash, ignore version check),
-REM                    -h (create HP_TOOLS partition), -b (suspend BitLocker),
-REM                    -p (encrypted password file, if BIOS password is set on the machines)
+REM Flags per HP's documented syntax for HPBIOSUPDREC64.exe (still worth a
+REM one-time "HPBIOSUPDREC64.exe -?" check on-site to confirm this exact
+REM utility version matches):
+REM   -s  silent               -f  path to the .bin file        -l  log path
+REM   -a  always flash, ignore version check (silent mode only)
+REM   -r  do not reboot        -h  create HP_TOOLS partition if missing
+REM   -b  suspend BitLocker    -p  encrypted BIOS password file (if a BIOS
+REM                                password is set on the machines)
 set "FLASH_TOOL=%~dp0HPBIOSUPDREC64.exe"
 set "FLASH_IMAGE=%~dp0firmware\10.04.08.bin"
 set "FLASH_LOG=%~dp0flash_result.log"
@@ -134,9 +164,13 @@ call :SetStage "Flash command finished (exit !errorlevel!), see %FLASH_LOG% for 
 
 
 REM ============================================
-REM  STEP 4: check boot settings AFTER flashing, BEFORE reboot
+REM  STEP 4: check boot settings AFTER the flash command, BEFORE reboot
+REM  NOTE: the actual firmware write happens during POST on the next boot,
+REM  not while HPBIOSUPDREC64.exe is running - so this still reads/fixes the
+REM  OLD BIOS. It's a cheap safety net, not proof the new BIOS is correct;
+REM  the authoritative check is in :after_flash_confirmed, after reboot.
 REM ============================================
-call :SetStage "Re-checking boot settings after flash, before reboot"
+call :SetStage "Re-checking boot settings after flash command, before reboot"
 call :CheckAndFixSimpleSetting "Fast Boot" "Disable"
 call :CheckAndFixBootOrder
 
@@ -397,8 +431,8 @@ If there have already been 3 failed attempts and the version still hasn't change
 ### Step 5. The flash itself
 The attempt counter is incremented and saved to the file **before** the flash runs (in case the flash itself hangs). The flash utility is then run in silent mode, logging to a separate file.
 
-### Step 6. Check boot settings RIGHT AFTER the flash, BEFORE reboot
-A repeat check of Fast Boot and Boot Order — the flash command itself can start touching NVRAM even before the change is applied via reboot.
+### Step 6. Check boot settings RIGHT AFTER the flash command, BEFORE reboot
+A repeat check of Fast Boot and Boot Order. Note: the actual firmware write happens during POST on the *next* boot, not while `HPBIOSUPDREC64.exe` is running — so this check still reads/fixes the **old** BIOS. It's a cheap safety net, not proof the new BIOS is correct (see "When does the flash actually happen?" above).
 
 ### Step 7. Reboot
 A required step — the new firmware only activates after a reboot. The script ends **this particular run**. Restarting the script after the reboot must be handled by an external mechanism (an MDT/SCCM Task Sequence step, a `RunOnce` registry entry, or logic in `unattendx.xml`).

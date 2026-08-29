@@ -11,11 +11,14 @@ set "TMPDIR=%~dp0temp"
 if not exist "%TMPDIR%" mkdir "%TMPDIR%"
 
 REM --- BIOS flash ---
-REM TODO: verify via "HPBIOSUPDREC64.exe -?" on the actual USB drive:
-REM       confirmed: -s (silent), -l (log path)
-REM       unconfirmed: -r (no reboot), -a (always flash, ignore version check),
-REM                    -h (create HP_TOOLS partition), -b (suspend BitLocker),
-REM                    -p (encrypted password file, if BIOS password is set on the machines)
+REM Flags per HP's documented syntax for HPBIOSUPDREC64.exe (still worth a
+REM one-time "HPBIOSUPDREC64.exe -?" check on-site to confirm this exact
+REM utility version matches):
+REM   -s  silent               -f  path to the .bin file        -l  log path
+REM   -a  always flash, ignore version check (silent mode only)
+REM   -r  do not reboot        -h  create HP_TOOLS partition if missing
+REM   -b  suspend BitLocker    -p  encrypted BIOS password file (if a BIOS
+REM                                password is set on the machines)
 set "FLASH_TOOL=%~dp0HPBIOSUPDREC64.exe"
 set "FLASH_IMAGE=%~dp0firmware\10.04.08.bin"
 set "FLASH_LOG=%~dp0flash_result.log"
@@ -95,9 +98,13 @@ call :SetStage "Flash command finished (exit !errorlevel!), see %FLASH_LOG% for 
 
 
 REM ============================================
-REM  STEP 4: check boot settings AFTER flashing, BEFORE reboot
+REM  STEP 4: check boot settings AFTER the flash command, BEFORE reboot
+REM  NOTE: the actual firmware write happens during POST on the next boot,
+REM  not while HPBIOSUPDREC64.exe is running - so this still reads/fixes the
+REM  OLD BIOS. It's a cheap safety net, not proof the new BIOS is correct;
+REM  the authoritative check is in :after_flash_confirmed, after reboot.
 REM ============================================
-call :SetStage "Re-checking boot settings after flash, before reboot"
+call :SetStage "Re-checking boot settings after flash command, before reboot"
 call :CheckAndFixSimpleSetting "Fast Boot" "Disable"
 call :CheckAndFixBootOrder
 

@@ -26,12 +26,17 @@ docs/
 
 Open items requiring on-site verification:
 
-- [ ] Exact `HPBIOSUPDREC64.exe` flags (`-s`, `-l` confirmed; `-r`, `-a`, `-h`, `-b`, `-p`
-      need verification) — check via `HPBIOSUPDREC64.exe -?`
+- [x] `HPBIOSUPDREC64.exe` flags — confirmed against HP's own documentation
+      (`-s`, `-f`, `-l`, `-a`, `-r`, `-h`, `-b`, `-p`, see Sources below and
+      `docs/HP-ProBook-BIOS-Flash-Full-Script.md`); still worth a one-time
+      `HPBIOSUPDREC64.exe -?` check on-site to confirm this exact utility version
 - [ ] `config.txt` format for Boot Order on this specific model
 - [ ] Mechanism to re-launch the script after reboot (Task Sequence / RunOnce)
 - [ ] Real names/paths for scripts B (Security Settings) and C (dialog + Ghost) —
       currently placeholders `B.bat` / `C.bat` next to the script
+- [ ] Confirm whether these machines have HP Sure Start — if so, the BIOS update
+      may trigger more than one reboot before the version actually changes (the
+      attempt-counter loop already tolerates this, just worth knowing in advance)
 
 ---
 
@@ -60,3 +65,12 @@ every reboot and re-enter the BIOS boot menu.
 
 For a detailed logic walkthrough, see
 `docs/HP-ProBook-BIOS-Flash-Full-Script.md`.
+
+---
+
+## Sources
+
+- [Updating BIOS Command Lines — HP Support Community](https://h30434.www3.hp.com/t5/Commercial-PC-Software/Updating-BIOS-Command-Lines/td-p/6518162)
+- [BIOS Flash Update (HP PDF)](https://h30434.www3.hp.com/psg/attachments/psg/Business-PC-Workstation-POS/34410/1/BIOS%20Flash%20Update.pdf)
+- [How to Update HP BIOS on Commercial Platforms — HP Developer Portal](https://developers.hp.com/hp-client-management/blog/how-update-hp-bios-commercial-platforms)
+- [650 G1: Silent BIOS Update With No Automatic Reboot? — HP Support Community](https://h30434.www3.hp.com/t5/Commercial-PC-Software/650-G1-Silent-BIOS-Update-With-No-Automatic-Reboot/td-p/5071561)

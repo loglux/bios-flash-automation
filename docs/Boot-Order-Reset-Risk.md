@@ -28,6 +28,17 @@ Machines with a blank/unimaged disk are not expected to hit this — with no `OS
 
 Setting Boot Order via `biosconfigutility64 /SetConfig` (what the script does) vs. via the BIOS Setup menu (what was done manually here) makes no difference to this risk — both write to the same underlying NVRAM `BootOrder` variable, and the firmware update process doesn't distinguish how that value was set.
 
+**Update:** the same symptom (lands back on Windows instead of the USB drive) has also been observed after the reboot triggered by script B's own security-settings changes, not just after the BIOS flash (A). So this isn't necessarily specific to the flash tool — the exact trigger is still unconfirmed (possibly a "Boot Order Lock"-style security feature enabled by B's settings; possibly something else). See "Design principle" below for why the script doesn't depend on pinning that down.
+
+## Design principle: resilience to the reset, not elimination of its cause
+
+The exact cause of the reset is unconfirmed and may never be fully diagnosed without extended on-site testing. Rather than chasing it, the script is built to tolerate it regardless of cause:
+- All BIOS state changes go through `biosconfigutility64` programmatically — never a manual F9/BIOS Setup keypress race.
+- All reboots are triggered via `shutdown /r` from the script — never a manual power-button cycle.
+- Every check is followed by a real re-read (`/getvalue`, `/GetConfig`) and a retry loop, never trust that a fix "should have" applied.
+
+The one thing this can't yet guarantee programmatically is the machine actually returning to WinPE after a risky reboot — that's the gap `BootNext` is meant to close (see below), and short of that, the manual "catch F9 at the right moment" step this project exists to eliminate.
+
 ## Proposed mitigation: one-time `BootNext` override via `bcdedit`
 
 UEFI exposes two separate boot-related NVRAM variables:

@@ -58,6 +58,7 @@ on the actual USB drive once, to confirm this exact utility version matches — 
 - [BIOS Flash Update (HP PDF)](https://h30434.www3.hp.com/psg/attachments/psg/Business-PC-Workstation-POS/34410/1/BIOS%20Flash%20Update.pdf)
 - [How to Update HP BIOS on Commercial Platforms — HP Developer Portal](https://developers.hp.com/hp-client-management/blog/how-update-hp-bios-commercial-platforms)
 - [650 G1: Silent BIOS Update With No Automatic Reboot? — HP Support Community](https://h30434.www3.hp.com/t5/Commercial-PC-Software/650-G1-Silent-BIOS-Update-With-No-Automatic-Reboot/td-p/5071561)
+- [bios1.txt — real config.txt dump for an HP ProBook 450 G1 (HP Support Community attachment)](https://h30434.www3.hp.com/psg/attachments/psg/Tablet/1373380/1/bios1.txt) — shows `Legacy Boot Order` and `UEFI Boot Order` as two separate sections (no plain `Boot Order`), confirming the setting name used in the script below
 
 ---
 
@@ -274,7 +275,7 @@ REM ============================================
 REM  Boot Order (ordered list) - pure CMD
 REM ============================================
 :CheckAndFixBootOrder
-set "BOOTSETTING=Boot Order"
+set "BOOTSETTING=UEFI Boot Order"
 set "attempt3=0"
 
 :retry_bootorder
@@ -464,7 +465,7 @@ The script only reaches this block once the BIOS version is confirmed to match t
 
 - The flash utility's command-line switches need to be verified on-site (see the section above).
 - The `config.txt` format (for Boot Order) depends on the BCU version and model — it's worth manually checking it once after `/GetConfig`.
-- The script uses `Boot Order` as the setting name (matches HP's own documentation example — see Sources above). It can still vary between models/BIOS modes (e.g. `Legacy Boot Order`) — verify with `/dumpall` or an unfiltered `/GetConfig` on-site once the machine is available.
+- The script uses `UEFI Boot Order` as the setting name — confirmed against a real config.txt dump for an HP ProBook 450 G1 (see Sources above), which has `Legacy Boot Order` and `UEFI Boot Order` as separate sections (no plain `Boot Order`). The exact name can still differ on this specific unit/BIOS revision — verify with `/dumpall` or an unfiltered `/GetConfig` on-site once the machine is available.
 - For the retry loop to actually work across reboots, an external mechanism to re-launch the script (Task Sequence, RunOnce, etc.) is required — the script does not restart itself.
 - `%SECURITY_SCRIPT%` (script B) and `%FINAL_SCRIPT%` (script C) are placeholders (`B.bat` / `C.bat` next to this script) — plug in the real file names/paths.
 - Fast Boot and Boot Order are **not** part of script B — they were added directly to this script so the pipeline doesn't need someone to manually catch every reboot and re-enter the BIOS boot menu.

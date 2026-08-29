@@ -32,10 +32,14 @@ Open items requiring on-site verification:
       `HPBIOSUPDREC64.exe -?` check on-site to confirm this exact utility version
 - [ ] `config.txt` format for Boot Order on this specific model — the line-based
       parsing (block boundary = blank line, no indentation, no `*` marker on
-      list entries) matches HP's own documented example (see Sources), and the
-      setting name is set to `Boot Order` to match it; still needs a one-time
-      `/GetConfig` on the actual machine to confirm the exact section name and
-      entry format on this model/BIOS mode
+      list entries) matches HP's own documented example, and the setting name
+      is set to `UEFI Boot Order`, confirmed against a real config.txt dump for
+      an HP ProBook 450 G1 which has separate `Legacy Boot Order` / `UEFI Boot
+      Order` sections (see Sources); still needs a one-time `/GetConfig` on the
+      actual machine to confirm the exact section name and entry format on this
+      specific unit/BIOS revision — the flash drive will be physically inserted
+      when the script runs, so its boot entry should carry the drive's own name
+      (containing "USB"), not a generic placeholder
 - [ ] Mechanism to re-launch the script after reboot (Task Sequence / RunOnce)
 - [ ] Real names/paths for scripts B (Security Settings) and C (dialog + Ghost) —
       currently placeholders `B.bat` / `C.bat` next to the script
@@ -79,3 +83,4 @@ For a detailed logic walkthrough, see
 - [BIOS Flash Update (HP PDF)](https://h30434.www3.hp.com/psg/attachments/psg/Business-PC-Workstation-POS/34410/1/BIOS%20Flash%20Update.pdf)
 - [How to Update HP BIOS on Commercial Platforms — HP Developer Portal](https://developers.hp.com/hp-client-management/blog/how-update-hp-bios-commercial-platforms)
 - [650 G1: Silent BIOS Update With No Automatic Reboot? — HP Support Community](https://h30434.www3.hp.com/t5/Commercial-PC-Software/650-G1-Silent-BIOS-Update-With-No-Automatic-Reboot/td-p/5071561)
+- [bios1.txt — real config.txt dump for an HP ProBook 450 G1](https://h30434.www3.hp.com/psg/attachments/psg/Tablet/1373380/1/bios1.txt)

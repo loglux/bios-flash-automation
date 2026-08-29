@@ -13,3 +13,9 @@ firmware/*.bin
 CONTEXT.md
 scripts/ru/
 docs/ru/
+
+# Screenshots shared for review - may contain hostnames/paths, not for the repo
+*.jpg
+*.jpeg
+*.png
+*.webp

@@ -26,7 +26,7 @@ Known behavior (confirmed on an HP support forum thread): after a successful BIO
 
 ---
 
-## Code (pure CMD, no PowerShell)
+## Code
 
 ```bat
 @echo off

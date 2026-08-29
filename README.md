@@ -12,10 +12,10 @@ HP BiosConfigUtility64 (BCU), run from a bootable USB drive in WinPE.
 scripts/
   HP-ProBook-Flash-And-Configure.bat   — main script
 
-docs/en/
-  HP-BCU-FastBoot-BootOrder-EN.md
-  HP-BCU-MSUEFICAKey-Gate-EN.md            — early gate draft, superseded — see Full Script
-  HP-ProBook-BIOS-Flash-Full-Script-EN.md  — full combined script, kept in sync with scripts/
+docs/
+  HP-BCU-FastBoot-BootOrder.md
+  HP-BCU-MSUEFICAKey-Gate.md            — early gate draft, superseded — see Full Script
+  HP-ProBook-BIOS-Flash-Full-Script.md  — full combined script, kept in sync with scripts/
 ```
 
 ---
@@ -59,4 +59,4 @@ every reboot and re-enter the BIOS boot menu.
 6. Logs every step to `stage.log`
 
 For a detailed logic walkthrough, see
-`docs/en/HP-ProBook-BIOS-Flash-Full-Script-EN.md`.
+`docs/HP-ProBook-BIOS-Flash-Full-Script.md`.

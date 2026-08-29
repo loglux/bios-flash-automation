@@ -28,23 +28,82 @@ Machines with a blank/unimaged disk are not expected to hit this — with no `OS
 
 Setting Boot Order via `biosconfigutility64 /SetConfig` (what the script does) vs. via the BIOS Setup menu (what was done manually here) makes no difference to this risk — both write to the same underlying NVRAM `BootOrder` variable, and the firmware update process doesn't distinguish how that value was set.
 
-## Proposed mitigation (not yet implemented): one-time `BootNext` override via `bcdedit`
+## Proposed mitigation: one-time `BootNext` override via `bcdedit`
 
-UEFI firmware exposes two distinct boot-related NVRAM variables:
+UEFI exposes two separate boot-related NVRAM variables:
 - `BootOrder` — the persistent priority list. This is what resets.
-- `BootNext` — a one-time override for the *next* boot only, cleared automatically by the firmware once consumed. Architecturally separate from `BootOrder`.
+- `BootNext` — a one-time override for the *next* boot only, auto-cleared once consumed. Separate variable from `BootOrder`.
 
-`bcdedit` (standard Windows tooling, normally included in WinPE) can set `BootNext` via:
-```bat
-bcdedit /set {fwbootmgr} bootsequence {GUID}
+Setting `BootNext` is a fully automated, per-machine lookup — no manual GUID entry anywhere. The script finds the USB entry's GUID at runtime the same way it already finds the USB line in `BootOrder` (by keyword match), then sets `BootNext` to it.
+
+**Confirmed real output format** of `bcdedit /enum firmware` (from Microsoft docs / community examples):
 ```
-The `{GUID}` must be looked up dynamically per machine/drive — via `bcdedit /enum firmware`, searching its output for the entry whose description contains "USB" (the same generic keyword-matching approach already used for `BootOrder` in `:CheckAndFixBootOrder`, not a hardcoded value). This keeps the fix generic across the fleet (any USB drive, any laptop) rather than tying it to one specific machine or drive — the concern raised earlier in the project about avoiding per-machine/per-drive coupling.
+Firmware Boot Manager
+---------------------
+identifier              {fwbootmgr}
+displayorder            {bootmgr}
+                        {93cee840-f524-11db-af62-aa767141e6b3}
+timeout                 2
 
-Proposed placement: right before `shutdown /r` in Step 4 of the script (after the flash command), as an **additional** safety net alongside the existing `BootOrder` fix — not a replacement for it.
+Windows Boot Manager
+---------------------
+identifier              {bootmgr}
+device                  partition=...
+path                    ...
+description             Windows Boot Manager
 
-**Open questions before implementing:**
-1. Is `bcdedit` actually present in the specific WinPE image used on the deployment USB drive? (Check with `bcdedit /enum firmware` on-site.)
-2. Does the firmware's Boot Order reset (during this specific BIOS update) also clear `BootNext`, or does `BootNext` survive it? This is the core uncertainty — no evidence either way yet, since `BootNext` wasn't set during the reproduction above.
-3. Exact wording/matching needed in `bcdedit /enum firmware` output to reliably identify the USB entry — not yet drafted or tested.
+EFI USB Device
+---------------------
+identifier              {08dec067-564c-11ee-a2b4-644ed7879b0e}
+device                  ...
+description             EFI USB Device
+```
+Each entry is its own block; `identifier` appears before `description` within the same block, both flush-left, space-separated. This confirms the parsing approach below — not yet tested against this specific WinPE's actual output, though.
 
-**Decision:** paused for now — documented here so it's not lost, to revisit once there's bandwidth/opportunity to test on real hardware whether `BootNext` actually survives this specific reset.
+### Code to add
+
+New subroutine, next to `:CheckAndFixBootOrder`:
+```bat
+:SetBootNextUSB
+set "fwdump=%TMPDIR%\firmware.txt"
+bcdedit /enum firmware > "%fwdump%" 2>nul
+
+set "found_id="
+set "current_id="
+for /f "usebackq delims=" %%L in ("%fwdump%") do (
+    set "line=%%L"
+    echo !line! | findstr /i "^identifier" >nul && (
+        for /f "tokens=2" %%I in ("!line!") do set "current_id=%%I"
+    )
+    echo !line! | findstr /i "^description.*USB" >nul && set "found_id=!current_id!"
+)
+
+if not defined found_id (
+    call :SetStage "BootNext: USB entry not found in bcdedit list, skipping"
+    goto :eof
+)
+
+bcdedit /set {fwbootmgr} bootsequence !found_id! >nul 2>&1
+call :SetStage "BootNext: one-time boot set to !found_id! (USB)"
+goto :eof
+```
+
+One call site, in `scripts/HP-ProBook-Flash-And-Configure.bat`, Step 4 — right before the reboot, after the flash command:
+```bat
+call :SetStage "Rebooting in 5 sec to apply flash..."
+shutdown /r /t 5
+```
+becomes:
+```bat
+call :SetBootNextUSB
+call :SetStage "Rebooting in 5 sec to apply flash..."
+shutdown /r /t 5
+```
+That's the only call site — it runs once per flash attempt, right before the risky reboot. No other part of the script changes; the existing `BootOrder` fix (Step 1, final block) stays exactly as-is. This is an addition, not a replacement.
+
+### Still unverified
+
+1. Whether this WinPE's actual `bcdedit /enum firmware` output matches the format above.
+2. Whether `BootNext` actually survives the same reset that wipes `BootOrder` on this specific BIOS update — the core unknown. Only real-hardware testing answers this.
+
+**Decision:** not yet added to the script — code is ready to paste in above, pending a test run to confirm point 2.

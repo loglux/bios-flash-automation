@@ -345,6 +345,15 @@ REM  a keyword in the description - confirmed on real hardware that a real
 REM  USB drive's bcdedit description does NOT reliably contain "USB" (it
 REM  showed as "UEFI: <brand> <model>, Partition N" instead). Drive-letter
 REM  matching needs no assumption about brand/model and works for any drive.
+REM
+REM  CAVEAT: %~d0 is only correct if this script runs directly from the USB
+REM  drive. If it ever gets copied to WinPE's RAM disk (X:) before running
+REM  - like the existing T1700Setup driver-install scripts do, per a
+REM  real-world screenshot from this environment - %~d0 would report X:,
+REM  not the real USB drive, and this would silently fail to find anything.
+REM  If that turns out to be the case on test, try replacing the line below
+REM  with a hardcoded "set "mydrive=D:"" instead - this environment's other
+REM  scripts already assume the boot USB is always D:.
 REM ============================================
 :SetBootNextUSB
 set "mydrive=%~d0"

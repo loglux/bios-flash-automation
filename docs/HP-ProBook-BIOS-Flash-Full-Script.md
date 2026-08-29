@@ -40,9 +40,8 @@ The flash utility switches for `HPBIOSUPDREC64.exe` are documented by HP as:
 ```
 HPBIOSUPDREC [-s] [-p PasswordFile] [-fBinaryFile] [-a] [-h] [-b] [-r] [-?]
 ```
-- `-s` silent, `-f` path to the `.bin` file, `-l` log path — used in the script below
+- `-s` silent, `-f` path to the `.bin` file, `-l` log path, `-r` do not reboot — all used in the script below (`-r` matters: without it, the tool likely reboots on its own once done, before control returns to the script — skipping its logging/reboot-control logic entirely)
 - `-a` always flash, ignore version check (silent mode only)
-- `-r` do not reboot
 - `-h` create the HP_TOOLS partition if missing
 - `-b` suspend BitLocker
 - `-p` encrypted BIOS password file (if a BIOS password is set on the machines)
@@ -160,7 +159,10 @@ if not exist "%FLASH_IMAGE%" (
 )
 
 REM --- TODO: verify and finalize the flag set below ---
-"%FLASH_TOOL%" -s -f"%FLASH_IMAGE%" -l"%FLASH_LOG%"
+REM -r (do not reboot) is required here: without it, the tool likely reboots
+REM the machine itself once it's done, before control returns to this script
+REM - which would skip the logging/reboot-control logic below entirely.
+"%FLASH_TOOL%" -s -r -f"%FLASH_IMAGE%" -l"%FLASH_LOG%"
 call :SetStage "Flash command finished (exit !errorlevel!), see %FLASH_LOG% for details"
 
 

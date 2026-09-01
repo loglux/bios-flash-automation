@@ -1,6 +1,6 @@
 # Boot Order reset during BIOS flash — confirmed risk and proposed mitigation
 
-**Status:** confirmed observed, mitigation proposed but **not implemented** — pending decision.
+**Status:** the Boot Order reset itself is confirmed observed. The `BootNext` mitigation is implemented in the `WithBootNext` variant but real-hardware testing on the actual ProBook shows its current matching logic finds nothing — see "Where this leaves the mitigation" below. Decision on how to proceed is open.
 
 ---
 
@@ -112,10 +112,48 @@ shutdown /r /t 5
 ```
 That's the only call site — it runs once per flash attempt, right before the risky reboot. No other part of the script changes; the existing `BootOrder` fix (Step 1, final block) stays exactly as-is. This is an addition, not a replacement. Only the `WithBootNext` script variant has this; the base script doesn't.
 
-### Still open
+### Real-hardware test on the actual ProBook (2026-09-01, WinPE, `X:\T1700Setup>`)
 
-1. **Whether this WinPE's actual `bcdedit /enum firmware` output shows an entry for the boot drive at all.** The real-hardware test above is encouraging (live discovery works, no reboot needed) but was on a different, non-HP PC — HP ProBook firmware could behave differently, and the UEFI spec technically doesn't require removable-media boot options to be listed here (see prior note in project history). This is the first thing to check on-site.
-2. **Whether `BootNext` actually survives the same reset that wipes `BootOrder` on this specific BIOS update** — the core unknown this whole mitigation exists to answer. Only real-hardware testing (on the actual ProBook, through an actual flash cycle) answers this.
-3. **Whether `%~d0` reports the right drive at all.** A real screenshot from this exact deployment environment shows the existing `T1700Setup` driver-install scripts get **copied from `D:\T1700Setup` to `X:\T1700Setup`** (WinPE's RAM disk) and run from there — `biosconfigutility64` itself was invoked from an `X:\T1700Setup>` prompt. If our combined script gets copied to `X:` the same way before running, `%~d0` would report `X:` (the RAM disk), not `D:` (the real USB drive) — and the drive-letter match would silently find nothing. **Not yet confirmed whether our script will be invoked the same way.** If testing shows this is the case, replace `set "mydrive=%~d0"` with a hardcoded `set "mydrive=D:"` — this environment's other scripts already assume the boot USB is always `D:`, so it's a proven-in-practice fallback, not a new assumption.
+Ran `bcdedit /enum firmware` from inside the real deployment WinPE, booted from the actual USB drive (a Kingston DataTraveler — confirmed mounted as `D:`; `X:` is WinPE's own RAM disk, a separate thing). Relevant part of the real output:
+```
+Firmware Boot Manager
+----------------------
+identifier              {fwbootmgr}
+displayorder            {bootmgr}
+                        {bba13431-292a-11f1-9c38-9875ebeb91fd}
+                        {bba1342e-292a-11f1-9c38-9875ebeb91fd}
+timeout                 0
 
-**Decision:** implemented in the `WithBootNext` script variant, not yet tested through an actual BIOS flash cycle on a ProBook — that's the remaining step before deciding whether to adopt it as the default.
+Windows Boot Manager
+---------------------
+identifier              {bootmgr}
+...
+
+Firmware Application (101fffff)
+--------------------------------
+identifier              {bba1342e-292a-11f1-9c38-9875ebeb91fd}
+description             IPV4 Network - Realtek PCIe GBE Family Controller
+
+Firmware Application (101fffff)
+--------------------------------
+identifier              {bba13431-292a-11f1-9c38-9875ebeb91fd}
+description             Kingston DataTraveler 3.0 2CFDA15C4C131A51C90E009F
+```
+
+**This settles "still open" point 1 from the earlier test, definitively and positively: yes, on this exact ProBook firmware, the boot USB gets its own `Firmware Application` entry in `bcdedit /enum firmware`.** That's the good news.
+
+**But it breaks both matching strategies tried so far, confirmed by directly checking with the user that nothing was cropped from the output:**
+- No `device` field at all in this entry — just `identifier` and `description`, nothing else. Unlike the earlier SanDisk test on an ordinary PC (which had `device partition=F:`), there's nothing here for the `%~d0`/drive-letter match to compare against.
+- No "USB" in `description` either — same finding as the SanDisk test, now confirmed a second time on different, actually-target hardware. It shows the drive's own brand/model/serial instead (`"Kingston DataTraveler 3.0 2CFDA15C4C131A51C90E009F"`), which is different for every physical flash drive in the fleet and can't be hardcoded.
+
+So as currently written, `:SetBootNextUSB` finds nothing on the real target hardware and always takes the "not found, skipping" branch — a safe no-op, but not the safety net intended.
+
+**A candidate third approach, not yet implemented or tested:** match by *elimination* instead of by a positive USB signal. On this machine, the only other `Firmware Application` entry is the network controller, whose description reliably contains generic, vendor-agnostic words (`Network`, `IPV4`/`IPV6`, `Ethernet`, `PXE`) — far more standardized across NIC vendors than USB drive branding is across USB vendors. The idea: enumerate all `Firmware Application` entries, exclude ones matching a network/PXE keyword pattern, and treat whatever's left as the boot drive. Risk: this is still a heuristic, not a guaranteed identifier — a machine with some other non-network, non-USB firmware application entry (e.g. a card reader, Thunderbolt, TPM) would misidentify or find multiple candidates. Not drafted or tested.
+
+### Where this leaves the mitigation
+
+Two real-hardware tests (an ordinary PC, and now the actual ProBook) have each broken the matching approach in a different way. The underlying mechanism (`BootNext` via `bcdedit`) is confirmed to exist and be reachable on the real target hardware, but reliably identifying *which* firmware entry is the boot USB — without any device path or USB keyword to go on — has turned out to be genuinely hard, not just an unverified detail.
+
+**Worth deciding explicitly:** keep pushing on the elimination-based heuristic (real but imperfect), or treat this real result as the point where `BootNext` gets shelved and the project relies solely on the already-working `BootOrder`-via-BCU mechanism (Step 1 + final block), accepting the residual architectural risk as documented in `README.md` rather than adding an increasingly fragile workaround on top of it.
+
+**Decision:** implemented in the `WithBootNext` script variant with the drive-letter matching approach, which the real-hardware test above shows does not find anything on the actual ProBook. Not yet adopted as the default, and the path forward (elimination heuristic vs. shelving the idea) is an open decision, not yet made.

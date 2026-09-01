@@ -79,13 +79,3 @@ flashing — HP Client Management Script Library (HP CMSL), with cmdlets like
 `Set-HPBIOSSettingValue` and `Update-HPFirmware`.
 
 - [Client Management Script Library (HP CMSL) — HP Developer Portal](https://developers.hp.com/hp-client-management/doc/client-management-script-library)
-
-P.S. HP's own deployment whitepaper solves the "does the machine come back to
-the deployment environment after reboot" problem architecturally: run the
-process as an MDT/SCCM Task Sequence, whose engine guarantees resumption after
-a Restart Computer step. Doesn't apply to this pipeline — `T1700Setup` is a
-standalone set of batch files on a USB drive, with no Task Sequence engine
-underneath it — see `experimental/Boot-Order-Reset-Risk.md` for the full
-comparison.
-
-- [Building, Deploying, and Updating an Image on HP Commercial PCs (HP whitepaper)](https://ftp.hp.com/pub/caps-softpaq/cmit/whitepapers/Building,%20Deploying,%20and%20Updating%20an%20Image%20on%20HP%20Commercial%20PCs.pdf)

@@ -71,7 +71,7 @@ Ran `bcdedit /enum firmware` (admin Command Prompt) at three points:
 
 **Two findings, one good, one requiring a fix (already applied below):**
 
-- **Good news:** no reboot was needed — Windows discovers bootable EFI applications on currently-attached media live, at least on this PC's firmware. This weakens (doesn't fully settle — see "Still open" below) the UEFI-spec concern that removable-media boot options might never appear in this list at all.
+- **Good news:** no reboot was needed — Windows discovers bootable EFI applications on currently-attached media live, at least on this PC's firmware. This weakens the UEFI-spec concern that removable-media boot options might never appear in this list at all — not fully settled by one PC's firmware, but a real data point.
 - **Bug found:** the `description` field does **not** reliably contain the word "USB" — it showed the drive's brand/model instead (`"UEFI: SanDisk Extreme Pro 0, Partition N"`). The original design (`findstr "^description.*USB"`) would have found nothing on this real example and silently skipped every time. Matching on brand/model name was considered and rejected — it would tie the script to whatever USB drive model happens to be in use today, breaking silently if the fleet ever switches drive models (the same per-drive coupling concern raised earlier in this project for other mechanisms).
 
 **Fix applied at the time:** match by the script's **own drive letter** — `identifier` still appears before `device` within each block (confirmed again by this real output), and `device partition=X:` gives an exact, assumption-free match: whatever drive the script is currently running from, found via `%~d0` (batch syntax for "the drive letter of the currently executing script"). **This was later superseded** — see "Real-hardware test on the actual ProBook" below, where this same approach was shown not to work on the real target hardware, and replaced with the elimination-based approach that's actually in the script today (code shown after that section).
@@ -112,7 +112,7 @@ identifier              {bba13431-292a-11f1-9c38-9875ebeb91fd}
 description             Kingston DataTraveler 3.0 2CFDA15C4C131A51C90E009F
 ```
 
-**This settles "still open" point 1 from the earlier test, definitively and positively: yes, on this exact ProBook firmware, the boot USB gets its own `Firmware Application` entry in `bcdedit /enum firmware`.** That's the good news.
+**This confirms, definitively and positively, that on this exact ProBook firmware the boot USB gets its own `Firmware Application` entry in `bcdedit /enum firmware`** — the concern from the earlier test, that removable-media entries might not show up at all, is resolved specifically for this hardware.
 
 **But it breaks both matching strategies tried so far, confirmed by directly checking with the user that nothing was cropped from the output:**
 - No `device` field at all in this entry — just `identifier` and `description`, nothing else. Unlike the earlier SanDisk test on an ordinary PC (which had `device partition=F:`), there's nothing here for the `%~d0`/drive-letter match to compare against.
@@ -166,6 +166,14 @@ Two real-hardware tests (an ordinary PC, and the actual ProBook) each broke a di
 No prior art was found for this exact problem either. Searched specifically for how others correlate a `bcdedit /enum firmware` entry to a physical USB drive (e.g. via `Win32_DiskDrive` serial number) — no documented procedure exists; one source notes `Win32_DiskDrive` and `Win32_PhysicalMedia` can even report *different* serial numbers for the same physical device, undermining that correlation idea before it's tried. Checked how MDT/SCCM-style deployment tooling handles "always come back to the deployment environment after a reboot" — the answer there is architectural, not a `bcdedit` trick: **HP's own official whitepaper** ("Building, Deploying, and Updating an Image on HP Commercial PCs") says to add a **Restart Computer task to an SCCM/MDT Task Sequence** — the Task Sequence engine itself guarantees resumption after reboot; it also warns, independently, that "changing certain BIOS settings might cause a task sequence to fail to complete" (matches this project's own Boot Order findings). **This solution doesn't apply here** — confirmed with the user that this project's actual pipeline (`T1700Setup`) is a standalone set of batch files on a USB drive, with no Task Sequence engine underneath it. HP's own documented answer to this exact class of problem assumes infrastructure this project doesn't have.
 
 **Decision:** the elimination heuristic above is implemented in the `WithBootNext` script variant. **Not part of the canonical script, not adopted as the default, and not planned for further work** — kept as an optional, dormant safety net. Still untested through an actual flash cycle on a ProBook (i.e. whether `BootNext` survives the reset at all remains unknown), and the project relies on the `BootOrder`-via-BCU mechanism (Step 1 + final block) as its one supported, working defense.
+
+## Alternative idea: restore normal boot order after C (not implemented)
+
+Everything above is about surviving reboots *during* the pipeline, before script C has run. A separate, simpler question: once C has actually completed successfully, should the script put Boot Order back to normal (Windows first) so the machine reliably boots into the finished image afterward, instead of leaving USB first indefinitely?
+
+`bcdedit /bootsequence` (the mechanism used above) can't do this — it's confirmed by Microsoft's own documentation to be a **one-time** override only, cleared after the very next boot. Using it here would only guarantee the boot immediately after C; any reboot after that would fall back to whatever the persistent `BootOrder` still is.
+
+The straightforward way to get a persistent change is to reuse the mechanism the script already has and has already proven on real hardware: call `:CheckAndFixBootOrder`-style logic (`biosconfigutility64 /GetConfig` → edit → `/SetConfig`) once more after C succeeds, this time moving `OS Boot Manager` to the front instead of USB. No new mechanism, no untested `bcdedit` NVRAM-writing behavior — same proven tool, opposite target. Not implemented anywhere yet; noted here as the likely path if this is ever picked up.
 
 ---
 

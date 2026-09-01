@@ -1,16 +1,16 @@
 # PowerShell script variant — status, pros/cons, and how to check/add it
 
-**Status:** experimental only. `scripts/HP-ProBook-Flash-And-Configure.ps1` is a parallel PowerShell port of the batch script, written purely to compare approaches. **Not adopted** — the batch script (`scripts/HP-ProBook-Flash-And-Configure.bat`) remains the primary, relied-upon version. Nothing changes unless PowerShell's presence in the actual WinPE image is confirmed and a deliberate decision is made to switch.
+**Status:** `powershell` is **confirmed present** in this project's actual WinPE (verified on-site, 2026-09-01) — the availability concern below is resolved. `scripts/HP-ProBook-Flash-And-Configure.ps1` is still **not adopted**, though — it's a parallel PowerShell port of the batch script, written to compare approaches, and hasn't received anywhere near the real-world scrutiny the batch script has (multiple bugs found and fixed through this project's testing — the `-r` flag, the Boot Order setting name, etc.). The batch script remains the primary, relied-upon version. A switch is now a legitimate option rather than blocked by an unknown, but it would need its own round of validation first.
 
 ---
 
-## Why this isn't a given: PowerShell in WinPE is optional
+## Why this wasn't a given: PowerShell in WinPE is optional
 
-Unlike `cmd.exe`, `biosconfigutility64.exe`, and `bcdedit` (all confirmed present in this project's WinPE), PowerShell is **not included in a base WinPE image by default**. It has to be deliberately added when the image is built, as a set of optional components layered on top of the base WinPE. If whoever built this specific WinPE didn't add them, `powershell.exe` simply won't exist — same failure mode as the `wmic` removal discussed elsewhere in this project's history (see CONTEXT.md).
+Unlike `cmd.exe`, `biosconfigutility64.exe`, and `bcdedit` (all confirmed present in this project's WinPE), PowerShell is **not included in a base WinPE image by default**. It has to be deliberately added when the image is built, as a set of optional components layered on top of the base WinPE. If whoever built this specific WinPE hadn't added them, `powershell.exe` simply wouldn't exist — same failure mode as the `wmic` removal discussed elsewhere in this project's history (see CONTEXT.md). This project's WinPE does have it, confirmed by testing.
 
 ## How to check if it's there
 
-From the WinPE command prompt:
+Already confirmed present on this project's WinPE, but kept here for reference (e.g. re-checking after a WinPE image rebuild, or on a different fleet). From the WinPE command prompt:
 ```
 powershell
 ```
@@ -31,7 +31,7 @@ if !errorlevel! neq 0 (
 )
 ```
 
-## How to add it to an existing WinPE image (if it's missing)
+## How to add it to an existing WinPE image (not needed here — kept for reference)
 
 Done via **DISM**, on a separate Windows machine with the **Windows ADK + WinPE Add-on** installed (the same tooling used to originally build this image) — not from within WinPE itself.
 

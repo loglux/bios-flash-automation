@@ -86,3 +86,12 @@ These are code-quality/robustness improvements, not fixes to the architectural r
 - **Doesn't fix any of the actual hardware/firmware risks** this project has spent most of its effort on — Boot Order resetting during flash, whether `BootNext` survives it, whether the boot USB registers a firmware entry at all. Same uncertainty either way.
 - **A full rewrite is a real undertaking** — re-testing every code path from scratch, not a drop-in swap.
 - If PowerShell does turn out to be present, a full switch isn't necessarily the best use of that fact — selectively rewriting only the fragile parts (BCU XML parsing, Boot Order rewriting) inside the existing batch script, e.g. by shelling out to `powershell -command "..."` for just those pieces, is a lower-risk way to get most of the benefit without discarding the tested batch flow.
+
+---
+
+## Sources
+
+- [WMIC removal from Windows — Microsoft Support](https://support.microsoft.com/en-us/topic/windows-management-instrumentation-command-line-wmic-removal-from-windows-e9e83c7f-4992-477f-ba1d-96f694b8665d)
+- [Notes on WinPE usage — HP Developer Portal](https://developers.hp.com/hp-client-management/doc/notes-winpe-usage)
+- [Client Management Script Library (HP CMSL) — HP Developer Portal](https://developers.hp.com/hp-client-management/doc/client-management-script-library)
+- [Update-HPFirmware — HP Developer Portal](https://developers.hp.com/hp-client-management/doc/update-hpfirmware)

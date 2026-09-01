@@ -63,13 +63,9 @@ Still open:
 
 ## ⚠️ Confirmed risk: no self-recovery if Boot Order breaks during the flash
 
-**This has been directly observed, not just reported on forums** — see `docs/Boot-Order-Reset-Risk.md` for the full write-up. Manual reproduction: Fast Boot and Boot Order both set correctly and confirmed holding through a normal reboot; after running the flash and rebooting again, Fast Boot stayed disabled but Boot Order reset to default, and since the disk already had a working Windows install, the machine booted straight into Windows instead of back into WinPE. The same symptom was also observed after script B's own reboot, not just after the BIOS flash — the exact trigger is unconfirmed.
+**Directly observed, not just reported on forums.** If Boot Order resets during a flash-triggered reboot and the disk already has a working OS on it, the machine boots straight into Windows instead of back into WinPE — and the script, living only on the USB drive, can't restart itself to fix that. The Step 1 check (before the flash) is the only real protection going in; there's no recovery if it breaks anyway. Machines with a blank disk are expected to be unaffected.
 
-The actual firmware write happens during POST on the reboot right after the flash command (see `docs/HP-ProBook-BIOS-Flash-Full-Script.md` → "When does the flash actually happen?"), and that's where Boot Order resets. Since the script only lives on the USB drive, it cannot restart itself to fix this if the machine boots the internal disk instead — its final-block re-check never gets a chance to run. The Step 1 check (Fast Boot/Boot Order verified *before* the flash) is the only real protection going into that risky reboot.
-
-Machines with a blank/unimaged disk are expected to be unaffected (no competing OS to boot into — see the doc for why). For machines with an existing OS on disk, this is a real, confirmed gap.
-
-**A `BootNext`-based mitigation was investigated in depth, including real-hardware testing on the actual ProBook, and did not reach a workable state.** The boot USB does get its own entry in `bcdedit /enum firmware` (confirmed on-site), but that entry carries neither a "USB" keyword nor a device/drive-letter field to reliably match on — both approaches tried failed on real hardware. No prior art was found for this exact problem, and HP's own official answer to "always return to the deployment environment after a reboot" (an SCCM/MDT Task Sequence's "Restart Computer" step) doesn't apply here, since this project's pipeline (`T1700Setup`) is a standalone set of batch files with no Task Sequence engine. An elimination-based heuristic (exclude known network/PXE entries, use whatever's left) is implemented in `scripts/HP-ProBook-Flash-And-Configure.WithBootNext.bat` as an optional, separate variant — **not part of the canonical script**, not adopted, and not planned for further work. See `docs/Boot-Order-Reset-Risk.md` for the full investigation.
+A `BootNext`-based safety net was investigated at length (including real-hardware testing) and kept as a separate, optional, unadopted variant (`scripts/HP-ProBook-Flash-And-Configure.WithBootNext.bat`) — **not part of the canonical script**. Full investigation, findings, and why it wasn't adopted: `docs/Boot-Order-Reset-Risk.md`.
 
 ---
 
@@ -103,14 +99,9 @@ For a detailed logic walkthrough, see
 
 ## Sources
 
+Directly backing the canonical script (flash flags/timing, `config.txt` format). Sources specific to the `BootNext` investigation or the PowerShell variant live in their own docs (`docs/Boot-Order-Reset-Risk.md`, `docs/PowerShell-Variant.md`), not duplicated here.
+
 - [Updating BIOS Command Lines — HP Support Community](https://h30434.www3.hp.com/t5/Commercial-PC-Software/Updating-BIOS-Command-Lines/td-p/6518162)
 - [BIOS Flash Update (HP PDF)](https://h30434.www3.hp.com/psg/attachments/psg/Business-PC-Workstation-POS/34410/1/BIOS%20Flash%20Update.pdf)
 - [How to Update HP BIOS on Commercial Platforms — HP Developer Portal](https://developers.hp.com/hp-client-management/blog/how-update-hp-bios-commercial-platforms)
-- [650 G1: Silent BIOS Update With No Automatic Reboot? — HP Support Community](https://h30434.www3.hp.com/t5/Commercial-PC-Software/650-G1-Silent-BIOS-Update-With-No-Automatic-Reboot/td-p/5071561)
 - [bios1.txt — real config.txt dump for an HP ProBook 450 G1](https://h30434.www3.hp.com/psg/attachments/psg/Tablet/1373380/1/bios1.txt)
-- [BCDEdit /bootsequence — Microsoft Learn](https://learn.microsoft.com/en-us/windows-hardware/drivers/devtest/bcdedit--bootsequence)
-- [3. Boot Manager — UEFI Specification 2.11](https://uefi.org/specs/UEFI/2.11/03_Boot_Manager.html)
-- [WMIC removal from Windows — Microsoft Support](https://support.microsoft.com/en-us/topic/windows-management-instrumentation-command-line-wmic-removal-from-windows-e9e83c7f-4992-477f-ba1d-96f694b8665d)
-- [Building, Deploying, and Updating an Image on HP Commercial PCs (HP whitepaper)](https://ftp.hp.com/pub/caps-softpaq/cmit/whitepapers/Building,%20Deploying,%20and%20Updating%20an%20Image%20on%20HP%20Commercial%20PCs.pdf)
-- [Notes on WinPE usage — HP Developer Portal](https://developers.hp.com/hp-client-management/doc/notes-winpe-usage)
-- [Client Management Script Library (HP CMSL) — HP Developer Portal](https://developers.hp.com/hp-client-management/doc/client-management-script-library)

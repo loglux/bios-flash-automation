@@ -71,3 +71,21 @@ Directly backing the canonical script (flash flags/timing, `config.txt` format).
 - [BIOS Flash Update (HP PDF)](https://h30434.www3.hp.com/psg/attachments/psg/Business-PC-Workstation-POS/34410/1/BIOS%20Flash%20Update.pdf)
 - [How to Update HP BIOS on Commercial Platforms — HP Developer Portal](https://developers.hp.com/hp-client-management/blog/how-update-hp-bios-commercial-platforms)
 - [bios1.txt — real config.txt dump for an HP ProBook 450 G1](https://h30434.www3.hp.com/psg/attachments/psg/Tablet/1373380/1/bios1.txt)
+
+---
+
+P.S. HP also publishes an official PowerShell module for BIOS management and
+flashing — HP Client Management Script Library (HP CMSL), with cmdlets like
+`Set-HPBIOSSettingValue` and `Update-HPFirmware`.
+
+- [Client Management Script Library (HP CMSL) — HP Developer Portal](https://developers.hp.com/hp-client-management/doc/client-management-script-library)
+
+P.S. HP's own deployment whitepaper solves the "does the machine come back to
+the deployment environment after reboot" problem architecturally: run the
+process as an MDT/SCCM Task Sequence, whose engine guarantees resumption after
+a Restart Computer step. Doesn't apply to this pipeline — `T1700Setup` is a
+standalone set of batch files on a USB drive, with no Task Sequence engine
+underneath it — see `experimental/Boot-Order-Reset-Risk.md` for the full
+comparison.
+
+- [Building, Deploying, and Updating an Image on HP Commercial PCs (HP whitepaper)](https://ftp.hp.com/pub/caps-softpaq/cmit/whitepapers/Building,%20Deploying,%20and%20Updating%20an%20Image%20on%20HP%20Commercial%20PCs.pdf)

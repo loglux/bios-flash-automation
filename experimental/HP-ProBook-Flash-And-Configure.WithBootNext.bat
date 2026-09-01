@@ -90,10 +90,10 @@ if not exist "%FLASH_IMAGE%" (
     exit /b 1
 )
 
-REM --- TODO: verify and finalize the flag set below ---
-REM -r (do not reboot) is required here: without it, the tool likely reboots
-REM the machine itself once it's done, before control returns to this script
-REM - which would skip the logging/BootNext/reboot-control logic below.
+REM -r (do not reboot) keeps control in the script instead of the tool
+REM rebooting on its own: without it, the machine would reboot before this
+REM script gets to log the result and run its own checks (including
+REM BootNext, see below) ahead of the controlled reboot.
 "%FLASH_TOOL%" -s -r -f"%FLASH_IMAGE%" -l"%FLASH_LOG%"
 call :SetStage "Flash command finished (exit !errorlevel!), see %FLASH_LOG% for details"
 

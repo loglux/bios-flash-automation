@@ -1,5 +1,5 @@
 <#
-    EXPERIMENTAL - PowerShell port of scripts/HP-ProBook-Flash-And-Configure.bat.
+    EXPERIMENTAL - PowerShell port of HP-ProBook-Flash-And-Configure.bat.
     Not adopted, not tested on real hardware. Written purely to compare the two
     approaches - see the chat/CONTEXT.md discussion for why PowerShell presence
     in the target WinPE image is NOT guaranteed (it's an optional component,

@@ -34,7 +34,7 @@ The attempt-counter loop (up to 3 attempts, tracked per machine serial) already 
 
 ---
 
-## ⚠️ Needs finishing on-site
+## Flash utility flags
 
 The flash utility switches for `HPBIOSUPDREC64.exe` are documented by HP as:
 ```
@@ -46,11 +46,7 @@ HPBIOSUPDREC [-s] [-p PasswordFile] [-fBinaryFile] [-a] [-h] [-b] [-r] [-?]
 - `-b` suspend BitLocker
 - `-p` encrypted BIOS password file (if a BIOS password is set on the machines)
 
-These are confirmed against HP's own documentation (see Sources below), but it's still worth running:
-```
-HPBIOSUPDREC64.exe -?
-```
-on the actual USB drive once, to confirm this exact utility version matches — and to decide whether `-p`/`-h`/`-b` are needed for these specific machines.
+Confirmed against HP's own documentation (see Sources below). Whether `-p`/`-h`/`-b` are needed for these specific machines is not yet confirmed.
 
 **Sources:**
 - [Updating BIOS Command Lines — HP Support Community](https://h30434.www3.hp.com/t5/Commercial-PC-Software/Updating-BIOS-Command-Lines/td-p/6518162)
@@ -77,9 +73,7 @@ set "TMPDIR=%~dp0temp"
 if not exist "%TMPDIR%" mkdir "%TMPDIR%"
 
 REM --- BIOS flash ---
-REM Flags per HP's documented syntax for HPBIOSUPDREC64.exe (still worth a
-REM one-time "HPBIOSUPDREC64.exe -?" check on-site to confirm this exact
-REM utility version matches):
+REM Flags per HP's documented syntax for HPBIOSUPDREC64.exe:
 REM   -s  silent               -f  path to the .bin file        -l  log path
 REM   -a  always flash, ignore version check (silent mode only)
 REM   -r  do not reboot        -h  create HP_TOOLS partition if missing

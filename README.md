@@ -10,38 +10,27 @@ HP BiosConfigUtility64 (BCU), run from a bootable USB drive in WinPE.
 
 ```
 scripts/
-  HP-ProBook-Flash-And-Configure.bat    — THE script (canonical, recommended)
-  experimental/                         — side variants, not part of the canonical script
-    HP-ProBook-Flash-And-Configure.WithBootNext.bat  — optional extra BootNext safety net
-    HP-ProBook-Flash-And-Configure.ps1               — PowerShell port, not adopted
+  HP-ProBook-Flash-And-Configure.bat    — the script
 
 docs/
   HP-BCU-FastBoot-BootOrder.md
   HP-BCU-MSUEFICAKey-Gate.md            — early gate draft, superseded — see Full Script
   HP-ProBook-BIOS-Flash-Full-Script.md  — full combined script, kept in sync with scripts/
-  experimental/                         — write-ups for the side variants above
-    Boot-Order-Reset-Risk.md            — confirmed Boot Order reset risk, BootNext investigation
-    PowerShell-Variant.md               — PowerShell port status, pros/cons, HP CMSL notes
 ```
 
 ---
 
 ## Status
 
-⚠️ **Work in progress**, but several previously-open items are now confirmed on real hardware (2026-08-29 to 2026-09-01 on-site testing).
+Several previously open items are now confirmed on real hardware (2026-08-29 to 2026-09-01 on-site testing).
 
-Confirmed on-site:
-- [x] `HPBIOSUPDREC64.exe` flags — confirmed against HP's own documentation
-      (`-s`, `-f`, `-l`, `-a`, `-r`, `-h`, `-b`, `-p`); still worth a one-time
-      `HPBIOSUPDREC64.exe -?` check on-site to confirm this exact utility version
+Verified:
+- [x] `HPBIOSUPDREC64.exe` flags confirmed against HP's own documentation:
+      `-s`, `-f`, `-l`, `-a`, `-r`, `-h`, `-b`, `-p`
 - [x] `config.txt` format and setting name for Boot Order — `UEFI Boot Order` confirmed
-      correct on the actual ProBook (real `/GetConfig`-style dump matched); the
-      line-based parsing (block boundary = blank line, no indentation, no `*` marker
-      on list entries) works as designed
-- [x] `wmic` is present and working in the actual deployment WinPE — no changes needed
-      to `:GetBiosVersion` or the serial-number lookup
-- [x] `powershell` is also present in the actual deployment WinPE, though not currently
-      used by the canonical script — see `docs/experimental/PowerShell-Variant.md`
+      correct on the actual ProBook; the line-based parsing (block boundary = blank
+      line, no indentation, no `*` marker on list entries) works as designed
+- [x] `wmic` works in the actual deployment WinPE
 
 Still open:
 - [ ] **Mechanism to re-launch the script after reboot.** Re-scoped after on-site
@@ -59,14 +48,12 @@ Still open:
       attempt-counter loop already tolerates this, just worth knowing in advance)
 - [ ] What BIOS password script B sets, and the other ~3 Security Settings it
       configures alongside "Enable MS UEFI CA key" — not yet identified
-
----
-
-## ⚠️ Confirmed risk: no self-recovery if Boot Order breaks during the flash
-
-**Directly observed, not just reported on forums.** If Boot Order resets during a flash-triggered reboot and the disk already has a working OS on it, the machine boots straight into Windows instead of back into WinPE — and the script, living only on the USB drive, can't restart itself to fix that. The Step 1 check (before the flash) is the only real protection going in; there's no recovery if it breaks anyway. Machines with a blank disk are expected to be unaffected.
-
-A `BootNext`-based safety net was investigated at length (including real-hardware testing) and kept as a separate, optional, unadopted variant (`scripts/experimental/HP-ProBook-Flash-And-Configure.WithBootNext.bat`) — **not part of the canonical script**. Full investigation, findings, and why it wasn't adopted: `docs/experimental/Boot-Order-Reset-Risk.md`.
+- [ ] No self-recovery if Boot Order resets during the flash-triggered reboot on a
+      machine that already has a working OS on disk — it boots into Windows instead
+      of back into WinPE, and the script (living only on the USB drive) can't restart
+      itself. The Step 1 check before the flash is the only protection in place.
+      Machines with a blank disk are expected to be unaffected. Observed on hardware
+      during on-site testing.
 
 ---
 
@@ -100,7 +87,7 @@ For a detailed logic walkthrough, see
 
 ## Sources
 
-Directly backing the canonical script (flash flags/timing, `config.txt` format). Sources specific to the `BootNext` investigation or the PowerShell variant live in their own docs (`docs/experimental/Boot-Order-Reset-Risk.md`, `docs/experimental/PowerShell-Variant.md`), not duplicated here.
+Directly backing the canonical script (flash flags/timing, `config.txt` format).
 
 - [Updating BIOS Command Lines — HP Support Community](https://h30434.www3.hp.com/t5/Commercial-PC-Software/Updating-BIOS-Command-Lines/td-p/6518162)
 - [BIOS Flash Update (HP PDF)](https://h30434.www3.hp.com/psg/attachments/psg/Business-PC-Workstation-POS/34410/1/BIOS%20Flash%20Update.pdf)

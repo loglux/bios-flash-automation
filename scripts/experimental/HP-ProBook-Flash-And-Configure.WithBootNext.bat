@@ -11,9 +11,7 @@ set "TMPDIR=%~dp0temp"
 if not exist "%TMPDIR%" mkdir "%TMPDIR%"
 
 REM --- BIOS flash ---
-REM Flags per HP's documented syntax for HPBIOSUPDREC64.exe (still worth a
-REM one-time "HPBIOSUPDREC64.exe -?" check on-site to confirm this exact
-REM utility version matches):
+REM Flags per HP's documented syntax for HPBIOSUPDREC64.exe:
 REM   -s  silent               -f  path to the .bin file        -l  log path
 REM   -a  always flash, ignore version check (silent mode only)
 REM   -r  do not reboot        -h  create HP_TOOLS partition if missing

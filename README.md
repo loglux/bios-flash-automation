@@ -10,52 +10,66 @@ HP BiosConfigUtility64 (BCU), run from a bootable USB drive in WinPE.
 
 ```
 scripts/
-  HP-ProBook-Flash-And-Configure.bat   — main script
+  HP-ProBook-Flash-And-Configure.bat             — main script (canonical, recommended)
+  HP-ProBook-Flash-And-Configure.WithBootNext.bat — optional variant with an extra,
+                                                     unverified BootNext safety net (see below)
+  HP-ProBook-Flash-And-Configure.ps1             — experimental PowerShell port, not adopted
 
 docs/
   HP-BCU-FastBoot-BootOrder.md
   HP-BCU-MSUEFICAKey-Gate.md            — early gate draft, superseded — see Full Script
   HP-ProBook-BIOS-Flash-Full-Script.md  — full combined script, kept in sync with scripts/
+  Boot-Order-Reset-Risk.md              — confirmed Boot Order reset risk, BootNext investigation
+  PowerShell-Variant.md                 — PowerShell port status, pros/cons, HP CMSL notes
 ```
 
 ---
 
 ## Status
 
-⚠️ **Work in progress.**
+⚠️ **Work in progress**, but several previously-open items are now confirmed on real hardware (2026-08-29 to 2026-09-01 on-site testing).
 
-Open items requiring on-site verification:
-
+Confirmed on-site:
 - [x] `HPBIOSUPDREC64.exe` flags — confirmed against HP's own documentation
-      (`-s`, `-f`, `-l`, `-a`, `-r`, `-h`, `-b`, `-p`, see Sources below and
-      `docs/HP-ProBook-BIOS-Flash-Full-Script.md`); still worth a one-time
+      (`-s`, `-f`, `-l`, `-a`, `-r`, `-h`, `-b`, `-p`); still worth a one-time
       `HPBIOSUPDREC64.exe -?` check on-site to confirm this exact utility version
-- [ ] `config.txt` format for Boot Order on this specific model — the line-based
-      parsing (block boundary = blank line, no indentation, no `*` marker on
-      list entries) matches HP's own documented example, and the setting name
-      is set to `UEFI Boot Order`, confirmed against a real config.txt dump for
-      an HP ProBook 450 G1 which has separate `Legacy Boot Order` / `UEFI Boot
-      Order` sections (see Sources); still needs a one-time `/GetConfig` on the
-      actual machine to confirm the exact section name and entry format on this
-      specific unit/BIOS revision — the flash drive will be physically inserted
-      when the script runs, so its boot entry should carry the drive's own name
-      (containing "USB"), not a generic placeholder
-- [ ] Mechanism to re-launch the script after reboot (Task Sequence / RunOnce)
+- [x] `config.txt` format and setting name for Boot Order — `UEFI Boot Order` confirmed
+      correct on the actual ProBook (real `/GetConfig`-style dump matched); the
+      line-based parsing (block boundary = blank line, no indentation, no `*` marker
+      on list entries) works as designed
+- [x] `wmic` is present and working in the actual deployment WinPE — no changes needed
+      to `:GetBiosVersion` or the serial-number lookup
+- [x] `powershell` is also present in the actual deployment WinPE, though not currently
+      used by the canonical script — see `docs/PowerShell-Variant.md`
+
+Still open:
+- [ ] **Mechanism to re-launch the script after reboot.** Re-scoped after on-site
+      investigation: WinPE always runs its `Startnet.cmd` entry point on every boot
+      (that's how the existing `T1700Setup` process already starts itself) — so the
+      real gap isn't "invent a re-launch mechanism," it's "hook this script into
+      whatever already launches on boot" (check for the `flash_attempt_<serial>.state`
+      file, launch this script if present). Not yet implemented.
 - [ ] Real names/paths for scripts B (Security Settings) and C (dialog + Ghost) —
-      currently placeholders `B.bat` / `C.bat` next to the script
+      currently placeholders `B.bat` / `C.bat` next to the script. Candidates spotted
+      in a real file listing from this environment: `SetBiosProBook4G1ah14.bat`,
+      `Post_Ghost.bat`, `STARTXUEFI85.bat` — not yet confirmed which map to B/C.
 - [ ] Confirm whether these machines have HP Sure Start — if so, the BIOS update
       may trigger more than one reboot before the version actually changes (the
       attempt-counter loop already tolerates this, just worth knowing in advance)
+- [ ] What BIOS password script B sets, and the other ~3 Security Settings it
+      configures alongside "Enable MS UEFI CA key" — not yet identified
 
 ---
 
 ## ⚠️ Confirmed risk: no self-recovery if Boot Order breaks during the flash
 
-**This has been directly observed, not just reported on forums** — see `docs/Boot-Order-Reset-Risk.md` for the full write-up. Manual reproduction: Fast Boot and Boot Order both set correctly and confirmed holding through a normal reboot; after running the flash and rebooting again, Fast Boot stayed disabled but Boot Order reset to default, and since the disk already had a working Windows install, the machine booted straight into Windows instead of back into WinPE.
+**This has been directly observed, not just reported on forums** — see `docs/Boot-Order-Reset-Risk.md` for the full write-up. Manual reproduction: Fast Boot and Boot Order both set correctly and confirmed holding through a normal reboot; after running the flash and rebooting again, Fast Boot stayed disabled but Boot Order reset to default, and since the disk already had a working Windows install, the machine booted straight into Windows instead of back into WinPE. The same symptom was also observed after script B's own reboot, not just after the BIOS flash — the exact trigger is unconfirmed.
 
 The actual firmware write happens during POST on the reboot right after the flash command (see `docs/HP-ProBook-BIOS-Flash-Full-Script.md` → "When does the flash actually happen?"), and that's where Boot Order resets. Since the script only lives on the USB drive, it cannot restart itself to fix this if the machine boots the internal disk instead — its final-block re-check never gets a chance to run. The Step 1 check (Fast Boot/Boot Order verified *before* the flash) is the only real protection going into that risky reboot.
 
-Machines with a blank/unimaged disk are expected to be unaffected (no competing OS to boot into — see the doc for why). For machines with an existing OS on disk, this is a real, confirmed gap. A mitigation is proposed (a one-time `BootNext` override via `bcdedit`, found dynamically per machine — not hardcoded) but **not yet implemented**, pending on-site testing of whether it actually survives the same reset. See `docs/Boot-Order-Reset-Risk.md` for details.
+Machines with a blank/unimaged disk are expected to be unaffected (no competing OS to boot into — see the doc for why). For machines with an existing OS on disk, this is a real, confirmed gap.
+
+**A `BootNext`-based mitigation was investigated in depth, including real-hardware testing on the actual ProBook, and did not reach a workable state.** The boot USB does get its own entry in `bcdedit /enum firmware` (confirmed on-site), but that entry carries neither a "USB" keyword nor a device/drive-letter field to reliably match on — both approaches tried failed on real hardware. No prior art was found for this exact problem, and HP's own official answer to "always return to the deployment environment after a reboot" (an SCCM/MDT Task Sequence's "Restart Computer" step) doesn't apply here, since this project's pipeline (`T1700Setup`) is a standalone set of batch files with no Task Sequence engine. An elimination-based heuristic (exclude known network/PXE entries, use whatever's left) is implemented in `scripts/HP-ProBook-Flash-And-Configure.WithBootNext.bat` as an optional, separate variant — **not part of the canonical script**, not adopted, and not planned for further work. See `docs/Boot-Order-Reset-Risk.md` for the full investigation.
 
 ---
 
@@ -94,3 +108,9 @@ For a detailed logic walkthrough, see
 - [How to Update HP BIOS on Commercial Platforms — HP Developer Portal](https://developers.hp.com/hp-client-management/blog/how-update-hp-bios-commercial-platforms)
 - [650 G1: Silent BIOS Update With No Automatic Reboot? — HP Support Community](https://h30434.www3.hp.com/t5/Commercial-PC-Software/650-G1-Silent-BIOS-Update-With-No-Automatic-Reboot/td-p/5071561)
 - [bios1.txt — real config.txt dump for an HP ProBook 450 G1](https://h30434.www3.hp.com/psg/attachments/psg/Tablet/1373380/1/bios1.txt)
+- [BCDEdit /bootsequence — Microsoft Learn](https://learn.microsoft.com/en-us/windows-hardware/drivers/devtest/bcdedit--bootsequence)
+- [3. Boot Manager — UEFI Specification 2.11](https://uefi.org/specs/UEFI/2.11/03_Boot_Manager.html)
+- [WMIC removal from Windows — Microsoft Support](https://support.microsoft.com/en-us/topic/windows-management-instrumentation-command-line-wmic-removal-from-windows-e9e83c7f-4992-477f-ba1d-96f694b8665d)
+- [Building, Deploying, and Updating an Image on HP Commercial PCs (HP whitepaper)](https://ftp.hp.com/pub/caps-softpaq/cmit/whitepapers/Building,%20Deploying,%20and%20Updating%20an%20Image%20on%20HP%20Commercial%20PCs.pdf)
+- [Notes on WinPE usage — HP Developer Portal](https://developers.hp.com/hp-client-management/doc/notes-winpe-usage)
+- [Client Management Script Library (HP CMSL) — HP Developer Portal](https://developers.hp.com/hp-client-management/doc/client-management-script-library)

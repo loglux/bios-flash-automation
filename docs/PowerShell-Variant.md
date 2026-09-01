@@ -39,12 +39,15 @@ Done via **DISM**, on a separate Windows machine with the **Windows ADK + WinPE 
    ```
    Dism /Mount-Image /ImageFile:D:\Sources\boot.wim /Index:1 /MountDir:C:\mount
    ```
-2. Add the required optional components, **in this dependency order** (paths are typically under `...\Windows Preinstallation Environment\amd64\WinPE_OCs\` in the ADK install):
+2. Add the required optional components, **in this dependency order** — HP's own "Notes on WinPE usage" guide (developers.hp.com) documents this exact list, more complete than earlier guesses in this doc's history (paths are typically under `...\Windows Preinstallation Environment\amd64\WinPE_OCs\` in the ADK install; each `.cab` has a matching `en-us\..._en-us.cab` language pack to add right after it):
    ```
    Dism /Image:C:\mount /Add-Package /PackagePath:"...\WinPE-WMI.cab"
-   Dism /Image:C:\mount /Add-Package /PackagePath:"...\WinPE-NetFx.cab"
+   Dism /Image:C:\mount /Add-Package /PackagePath:"...\WinPE-NetFX.cab"
    Dism /Image:C:\mount /Add-Package /PackagePath:"...\WinPE-Scripting.cab"
    Dism /Image:C:\mount /Add-Package /PackagePath:"...\WinPE-PowerShell.cab"
+   Dism /Image:C:\mount /Add-Package /PackagePath:"...\WinPE-StorageWMI.cab"
+   Dism /Image:C:\mount /Add-Package /PackagePath:"...\WinPE-DismCmdlets.cab"
+   Dism /Image:C:\mount /Add-Package /PackagePath:"...\WinPE-SecureBootCmdlets.cab"
    ```
 3. Commit and unmount:
    ```
@@ -53,6 +56,16 @@ Done via **DISM**, on a separate Windows machine with the **Windows ADK + WinPE 
 4. Copy the updated `boot.wim` back to the deployment USB drive, replacing the original.
 
 **Caveats:** the CAB architecture (x86/amd64/arm64) must match the existing image exactly; the dependency order above must be respected or `Add-Package` fails; this changes the boot image for the *entire* fleet's USB drives, not just one — treat it as an infrastructure change, not a quick script edit.
+
+## A bigger opportunity: HP's own official PowerShell module (HP CMSL)
+
+Found in HP's own "Notes on WinPE usage" documentation (developers.hp.com), which explicitly covers using it from WinPE: **HP Client Management Script Library (HP CMSL)** is an official HP PowerShell module with purpose-built cmdlets for exactly what this script does by hand today:
+- `Set-HPBIOSSettingValue` / `Set-HPBIOSSettingValuesFromFile` — direct replacements for the script's `biosconfigutility64 /setvalue` and `/SetConfig` calls (and their manual CDATA/text parsing).
+- `Update-HPFirmware` — HP's official cmdlet for flashing the BIOS, a PowerShell-native alternative to calling `HPBIOSUPDREC64.exe` directly. HP's own docs flag one gotcha for WinPE specifically: *"When flashing the BIOS from WinPE, specify the `-BitLocker ignore` flag, since WinPE does not have the BitLocker-related checks, and our library will fail when trying to check if BitLocker is enabled."*
+- `Set-HPBIOSSetupPassword`, `Write-HPFirmwarePasswordFile` — directly relevant to this project's still-unresolved question of automating the BIOS Setup password that script B sets (see CONTEXT.md).
+- `Get-HPFirmwareAuditLog` — could help understand exactly what a BIOS update or settings change actually did.
+
+**This is a bigger lift than "PowerShell is present," though.** HP CMSL is a separate module that has to be installed into the WinPE image on top of PowerShell (typically `Install-Module HPCMSL` from PowerShell Gallery, or a manual offline package for an environment without internet access like WinPE) — confirming PowerShell exists doesn't mean this module exists too; that's unconfirmed and unrelated. If pursued, it would replace both `biosconfigutility64` calls and the `HPBIOSUPDREC64.exe` call with HP-native, better-supported equivalents — a more thorough rewrite than the plain-PowerShell port in this doc, but backed by an officially documented, purpose-built tool rather than reverse-engineered text parsing. Not investigated further than this — worth a dedicated look if a PowerShell rewrite is ever pursued for real.
 
 ## Does PowerShell replace `bcdedit` too?
 

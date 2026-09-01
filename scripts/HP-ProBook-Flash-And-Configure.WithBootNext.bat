@@ -340,38 +340,49 @@ REM ============================================
 REM  One-time BootNext override via bcdedit (EXPERIMENTAL)
 REM  Extra safety net alongside :CheckAndFixBootOrder - not a replacement.
 REM  See docs/Boot-Order-Reset-Risk.md for the rationale and open questions.
-REM  Matches by the script's OWN drive letter (device partition=X:), not by
-REM  a keyword in the description - confirmed on real hardware that a real
-REM  USB drive's bcdedit description does NOT reliably contain "USB" (it
-REM  showed as "UEFI: <brand> <model>, Partition N" instead). Drive-letter
-REM  matching needs no assumption about brand/model and works for any drive.
 REM
-REM  CAVEAT: %~d0 is only correct if this script runs directly from the USB
-REM  drive. If it ever gets copied to WinPE's RAM disk (X:) before running
-REM  - like the existing T1700Setup driver-install scripts do, per a
-REM  real-world screenshot from this environment - %~d0 would report X:,
-REM  not the real USB drive, and this would silently fail to find anything.
-REM  If that turns out to be the case on test, try replacing the line below
-REM  with a hardcoded "set "mydrive=D:"" instead - this environment's other
-REM  scripts already assume the boot USB is always D:.
+REM  Matches by ELIMINATION, not by a positive USB signal. Real-hardware
+REM  testing (both an ordinary PC and the actual ProBook) showed neither a
+REM  "USB" keyword nor a device/drive-letter field can be relied on - the
+REM  real ProBook entry for the boot USB had only identifier+description,
+REM  no device= line, and description was the drive's own brand/model/
+REM  serial (e.g. "Kingston DataTraveler 3.0 <serial>"), never "USB".
+REM
+REM  So instead: scan all "Firmware Application" entries (this excludes
+REM  Firmware Boot Manager and Windows Boot Manager), skip any whose
+REM  description matches known network/PXE keywords (confirmed present on
+REM  the real ProBook: "IPV4 Network - Realtek PCIe GBE Family Controller"),
+REM  and use whatever's left. On a fleet of identical hardware (same NIC),
+REM  this is a real but imperfect heuristic - it would misidentify a
+REM  machine with some other unexpected Firmware Application entry (e.g.
+REM  a card reader). Not a hardcoded brand/model - works for any USB drive.
 REM ============================================
 :SetBootNextUSB
-set "mydrive=%~d0"
 set "fwdump=%TMPDIR%\firmware.txt"
 bcdedit /enum firmware > "%fwdump%" 2>nul
 
 set "found_id="
 set "current_id="
+set "in_fwapp=0"
 for /f "usebackq delims=" %%L in ("%fwdump%") do (
     set "line=%%L"
-    echo !line! | findstr /i "^identifier" >nul && (
-        for /f "tokens=2" %%I in ("!line!") do set "current_id=%%I"
+    echo !line! | findstr /i "^Firmware Application" >nul && set "in_fwapp=1"
+    echo !line! | findstr /i "^Windows Boot Manager" >nul && set "in_fwapp=0"
+    echo !line! | findstr /i "^Firmware Boot Manager" >nul && set "in_fwapp=0"
+
+    if "!in_fwapp!"=="1" (
+        echo !line! | findstr /i "^identifier" >nul && (
+            for /f "tokens=2" %%I in ("!line!") do set "current_id=%%I"
+        )
+        echo !line! | findstr /i "^description" >nul && (
+            echo !line! | findstr /i "Network Ethernet IPV4 IPV6 PXE" >nul
+            if !errorlevel! neq 0 set "found_id=!current_id!"
+        )
     )
-    echo !line! | findstr /i /c:"partition=%mydrive%" >nul && set "found_id=!current_id!"
 )
 
 if not defined found_id (
-    call :SetStage "BootNext: no firmware entry found for drive %mydrive%, skipping"
+    call :SetStage "BootNext: no non-network firmware entry found, skipping"
     goto :eof
 )
 

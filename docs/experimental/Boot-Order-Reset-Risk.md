@@ -122,7 +122,7 @@ So as currently written, `:SetBootNextUSB` finds nothing on the real target hard
 
 **Approach adopted instead: match by *elimination*, not a positive USB signal.** On this machine, the only other `Firmware Application` entry is the network controller, whose description reliably contains generic, vendor-agnostic words (`Network`, `IPV4`/`IPV6`, `Ethernet`, `PXE`) — far more standardized across NIC vendors than USB drive branding is across USB vendors. Enumerate all `Firmware Application` entries, exclude ones matching a network/PXE keyword pattern, and treat whatever's left as the boot drive. Risk: still a heuristic, not a guaranteed identifier — a machine with some other non-network, non-USB firmware application entry (e.g. a card reader, Thunderbolt, TPM) would misidentify or find multiple candidates.
 
-### Current code (in `scripts/HP-ProBook-Flash-And-Configure.WithBootNext.bat`)
+### Current code (in `scripts/experimental/HP-ProBook-Flash-And-Configure.WithBootNext.bat`)
 
 ```bat
 :SetBootNextUSB

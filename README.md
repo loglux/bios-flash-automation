@@ -10,17 +10,18 @@ HP BiosConfigUtility64 (BCU), run from a bootable USB drive in WinPE.
 
 ```
 scripts/
-  HP-ProBook-Flash-And-Configure.bat             — main script (canonical, recommended)
-  HP-ProBook-Flash-And-Configure.WithBootNext.bat — optional variant with an extra,
-                                                     unverified BootNext safety net (see below)
-  HP-ProBook-Flash-And-Configure.ps1             — experimental PowerShell port, not adopted
+  HP-ProBook-Flash-And-Configure.bat    — THE script (canonical, recommended)
+  experimental/                         — side variants, not part of the canonical script
+    HP-ProBook-Flash-And-Configure.WithBootNext.bat  — optional extra BootNext safety net
+    HP-ProBook-Flash-And-Configure.ps1               — PowerShell port, not adopted
 
 docs/
   HP-BCU-FastBoot-BootOrder.md
   HP-BCU-MSUEFICAKey-Gate.md            — early gate draft, superseded — see Full Script
   HP-ProBook-BIOS-Flash-Full-Script.md  — full combined script, kept in sync with scripts/
-  Boot-Order-Reset-Risk.md              — confirmed Boot Order reset risk, BootNext investigation
-  PowerShell-Variant.md                 — PowerShell port status, pros/cons, HP CMSL notes
+  experimental/                         — write-ups for the side variants above
+    Boot-Order-Reset-Risk.md            — confirmed Boot Order reset risk, BootNext investigation
+    PowerShell-Variant.md               — PowerShell port status, pros/cons, HP CMSL notes
 ```
 
 ---
@@ -40,7 +41,7 @@ Confirmed on-site:
 - [x] `wmic` is present and working in the actual deployment WinPE — no changes needed
       to `:GetBiosVersion` or the serial-number lookup
 - [x] `powershell` is also present in the actual deployment WinPE, though not currently
-      used by the canonical script — see `docs/PowerShell-Variant.md`
+      used by the canonical script — see `docs/experimental/PowerShell-Variant.md`
 
 Still open:
 - [ ] **Mechanism to re-launch the script after reboot.** Re-scoped after on-site
@@ -65,7 +66,7 @@ Still open:
 
 **Directly observed, not just reported on forums.** If Boot Order resets during a flash-triggered reboot and the disk already has a working OS on it, the machine boots straight into Windows instead of back into WinPE — and the script, living only on the USB drive, can't restart itself to fix that. The Step 1 check (before the flash) is the only real protection going in; there's no recovery if it breaks anyway. Machines with a blank disk are expected to be unaffected.
 
-A `BootNext`-based safety net was investigated at length (including real-hardware testing) and kept as a separate, optional, unadopted variant (`scripts/HP-ProBook-Flash-And-Configure.WithBootNext.bat`) — **not part of the canonical script**. Full investigation, findings, and why it wasn't adopted: `docs/Boot-Order-Reset-Risk.md`.
+A `BootNext`-based safety net was investigated at length (including real-hardware testing) and kept as a separate, optional, unadopted variant (`scripts/experimental/HP-ProBook-Flash-And-Configure.WithBootNext.bat`) — **not part of the canonical script**. Full investigation, findings, and why it wasn't adopted: `docs/experimental/Boot-Order-Reset-Risk.md`.
 
 ---
 
@@ -99,7 +100,7 @@ For a detailed logic walkthrough, see
 
 ## Sources
 
-Directly backing the canonical script (flash flags/timing, `config.txt` format). Sources specific to the `BootNext` investigation or the PowerShell variant live in their own docs (`docs/Boot-Order-Reset-Risk.md`, `docs/PowerShell-Variant.md`), not duplicated here.
+Directly backing the canonical script (flash flags/timing, `config.txt` format). Sources specific to the `BootNext` investigation or the PowerShell variant live in their own docs (`docs/experimental/Boot-Order-Reset-Risk.md`, `docs/experimental/PowerShell-Variant.md`), not duplicated here.
 
 - [Updating BIOS Command Lines — HP Support Community](https://h30434.www3.hp.com/t5/Commercial-PC-Software/Updating-BIOS-Command-Lines/td-p/6518162)
 - [BIOS Flash Update (HP PDF)](https://h30434.www3.hp.com/psg/attachments/psg/Business-PC-Workstation-POS/34410/1/BIOS%20Flash%20Update.pdf)

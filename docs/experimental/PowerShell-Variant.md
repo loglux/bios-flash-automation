@@ -1,6 +1,6 @@
 # PowerShell script variant — status, pros/cons, and how to check/add it
 
-**Status:** `powershell` is **confirmed present** in this project's actual WinPE (verified on-site, 2026-09-01) — the availability concern below is resolved. `scripts/HP-ProBook-Flash-And-Configure.ps1` is still **not adopted**, though — it's a parallel PowerShell port of the batch script, written to compare approaches, and hasn't received anywhere near the real-world scrutiny the batch script has (multiple bugs found and fixed through this project's testing — the `-r` flag, the Boot Order setting name, etc.). The batch script remains the primary, relied-upon version. A switch is now a legitimate option rather than blocked by an unknown, but it would need its own round of validation first.
+**Status:** `powershell` is **confirmed present** in this project's actual WinPE (verified on-site, 2026-09-01) — the availability concern below is resolved. `scripts/experimental/HP-ProBook-Flash-And-Configure.ps1` is still **not adopted**, though — it's a parallel PowerShell port of the batch script, written to compare approaches, and hasn't received anywhere near the real-world scrutiny the batch script has (multiple bugs found and fixed through this project's testing — the `-r` flag, the Boot Order setting name, etc.). The batch script remains the primary, relied-upon version. A switch is now a legitimate option rather than blocked by an unknown, but it would need its own round of validation first.
 
 ---
 

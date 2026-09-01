@@ -1,6 +1,6 @@
 # Boot Order reset during BIOS flash — confirmed risk and proposed mitigation
 
-**Status:** the Boot Order reset itself is confirmed observed. The `BootNext` mitigation is implemented in the `WithBootNext` variant but real-hardware testing on the actual ProBook shows its current matching logic finds nothing — see "Where this leaves the mitigation" below. Decision on how to proceed is open.
+**Status:** the Boot Order reset itself is confirmed observed. The `BootNext` mitigation (elimination-based matching, after two earlier approaches failed on real hardware) is implemented in the `WithBootNext` variant, kept as an optional/dormant safety net — **not part of the canonical script, not adopted as default**. Whether `BootNext` actually survives the reset remains unverified. See "Where this leaves the mitigation" below.
 
 ---
 
@@ -74,35 +74,7 @@ Ran `bcdedit /enum firmware` (admin Command Prompt) at three points:
 - **Good news:** no reboot was needed — Windows discovers bootable EFI applications on currently-attached media live, at least on this PC's firmware. This weakens (doesn't fully settle — see "Still open" below) the UEFI-spec concern that removable-media boot options might never appear in this list at all.
 - **Bug found:** the `description` field does **not** reliably contain the word "USB" — it showed the drive's brand/model instead (`"UEFI: SanDisk Extreme Pro 0, Partition N"`). The original design (`findstr "^description.*USB"`) would have found nothing on this real example and silently skipped every time. Matching on brand/model name was considered and rejected — it would tie the script to whatever USB drive model happens to be in use today, breaking silently if the fleet ever switches drive models (the same per-drive coupling concern raised earlier in this project for other mechanisms).
 
-**Fix applied:** match by the script's **own drive letter** instead — `identifier` still appears before `device` within each block (confirmed again by this real output), and `device partition=X:` gives an exact, assumption-free match: whatever drive the script is currently running from, found via `%~d0` (batch syntax for "the drive letter of the currently executing script").
-
-### Code (already in `scripts/HP-ProBook-Flash-And-Configure.WithBootNext.bat`)
-
-```bat
-:SetBootNextUSB
-set "mydrive=%~d0"
-set "fwdump=%TMPDIR%\firmware.txt"
-bcdedit /enum firmware > "%fwdump%" 2>nul
-
-set "found_id="
-set "current_id="
-for /f "usebackq delims=" %%L in ("%fwdump%") do (
-    set "line=%%L"
-    echo !line! | findstr /i "^identifier" >nul && (
-        for /f "tokens=2" %%I in ("!line!") do set "current_id=%%I"
-    )
-    echo !line! | findstr /i /c:"partition=%mydrive%" >nul && set "found_id=!current_id!"
-)
-
-if not defined found_id (
-    call :SetStage "BootNext: no firmware entry found for drive %mydrive%, skipping"
-    goto :eof
-)
-
-bcdedit /bootsequence !found_id! >nul 2>&1
-call :SetStage "BootNext: one-time boot set to !found_id! (drive %mydrive%)"
-goto :eof
-```
+**Fix applied at the time:** match by the script's **own drive letter** — `identifier` still appears before `device` within each block (confirmed again by this real output), and `device partition=X:` gives an exact, assumption-free match: whatever drive the script is currently running from, found via `%~d0` (batch syntax for "the drive letter of the currently executing script"). **This was later superseded** — see "Real-hardware test on the actual ProBook" below, where this same approach was shown not to work on the real target hardware, and replaced with the elimination-based approach that's actually in the script today (code shown after that section).
 
 Call site — Step 4, right before the reboot, after the flash command:
 ```bat
@@ -148,14 +120,49 @@ description             Kingston DataTraveler 3.0 2CFDA15C4C131A51C90E009F
 
 So as currently written, `:SetBootNextUSB` finds nothing on the real target hardware and always takes the "not found, skipping" branch — a safe no-op, but not the safety net intended.
 
-**A candidate third approach, not yet implemented or tested:** match by *elimination* instead of by a positive USB signal. On this machine, the only other `Firmware Application` entry is the network controller, whose description reliably contains generic, vendor-agnostic words (`Network`, `IPV4`/`IPV6`, `Ethernet`, `PXE`) — far more standardized across NIC vendors than USB drive branding is across USB vendors. The idea: enumerate all `Firmware Application` entries, exclude ones matching a network/PXE keyword pattern, and treat whatever's left as the boot drive. Risk: this is still a heuristic, not a guaranteed identifier — a machine with some other non-network, non-USB firmware application entry (e.g. a card reader, Thunderbolt, TPM) would misidentify or find multiple candidates. Not drafted or tested.
+**Approach adopted instead: match by *elimination*, not a positive USB signal.** On this machine, the only other `Firmware Application` entry is the network controller, whose description reliably contains generic, vendor-agnostic words (`Network`, `IPV4`/`IPV6`, `Ethernet`, `PXE`) — far more standardized across NIC vendors than USB drive branding is across USB vendors. Enumerate all `Firmware Application` entries, exclude ones matching a network/PXE keyword pattern, and treat whatever's left as the boot drive. Risk: still a heuristic, not a guaranteed identifier — a machine with some other non-network, non-USB firmware application entry (e.g. a card reader, Thunderbolt, TPM) would misidentify or find multiple candidates.
+
+### Current code (in `scripts/HP-ProBook-Flash-And-Configure.WithBootNext.bat`)
+
+```bat
+:SetBootNextUSB
+set "fwdump=%TMPDIR%\firmware.txt"
+bcdedit /enum firmware > "%fwdump%" 2>nul
+
+set "found_id="
+set "current_id="
+set "in_fwapp=0"
+for /f "usebackq delims=" %%L in ("%fwdump%") do (
+    set "line=%%L"
+    echo !line! | findstr /i "^Firmware Application" >nul && set "in_fwapp=1"
+    echo !line! | findstr /i "^Windows Boot Manager" >nul && set "in_fwapp=0"
+    echo !line! | findstr /i "^Firmware Boot Manager" >nul && set "in_fwapp=0"
+
+    if "!in_fwapp!"=="1" (
+        echo !line! | findstr /i "^identifier" >nul && (
+            for /f "tokens=2" %%I in ("!line!") do set "current_id=%%I"
+        )
+        echo !line! | findstr /i "^description" >nul && (
+            echo !line! | findstr /i "Network Ethernet IPV4 IPV6 PXE" >nul
+            if !errorlevel! neq 0 set "found_id=!current_id!"
+        )
+    )
+)
+
+if not defined found_id (
+    call :SetStage "BootNext: no non-network firmware entry found, skipping"
+    goto :eof
+)
+
+bcdedit /bootsequence !found_id! >nul 2>&1
+call :SetStage "BootNext: one-time boot set to !found_id!"
+goto :eof
+```
 
 ### Where this leaves the mitigation
 
-Two real-hardware tests (an ordinary PC, and now the actual ProBook) have each broken the matching approach in a different way. The underlying mechanism (`BootNext` via `bcdedit`) is confirmed to exist and be reachable on the real target hardware, but reliably identifying *which* firmware entry is the boot USB — without any device path or USB keyword to go on — has turned out to be genuinely hard, not just an unverified detail.
+Two real-hardware tests (an ordinary PC, and the actual ProBook) each broke a different matching approach before landing on the elimination heuristic above. The underlying mechanism (`BootNext` via `bcdedit`) is confirmed to exist and be reachable on the real target hardware, but reliably identifying *which* firmware entry is the boot USB — without any device path or USB keyword to go on — turned out to be genuinely hard, not just an unverified detail.
 
 No prior art was found for this exact problem either. Searched specifically for how others correlate a `bcdedit /enum firmware` entry to a physical USB drive (e.g. via `Win32_DiskDrive` serial number) — no documented procedure exists; one source notes `Win32_DiskDrive` and `Win32_PhysicalMedia` can even report *different* serial numbers for the same physical device, undermining that correlation idea before it's tried. Checked how MDT/SCCM-style deployment tooling handles "always come back to the deployment environment after a reboot" — the answer there is architectural, not a `bcdedit` trick: **HP's own official whitepaper** ("Building, Deploying, and Updating an Image on HP Commercial PCs") says to add a **Restart Computer task to an SCCM/MDT Task Sequence** — the Task Sequence engine itself guarantees resumption after reboot; it also warns, independently, that "changing certain BIOS settings might cause a task sequence to fail to complete" (matches this project's own Boot Order findings). **This solution doesn't apply here** — confirmed with the user that this project's actual pipeline (`T1700Setup`) is a standalone set of batch files on a USB drive, with no Task Sequence engine underneath it. HP's own documented answer to this exact class of problem assumes infrastructure this project doesn't have.
 
-**Worth deciding explicitly:** keep pushing on the elimination-based heuristic (real but imperfect, and confirmed to be uncharted territory — not a known-solved problem), or treat this real result as the point where `BootNext` gets shelved and the project relies solely on the already-working `BootOrder`-via-BCU mechanism (Step 1 + final block), accepting the residual architectural risk as documented in `README.md` rather than adding an increasingly fragile workaround on top of it.
-
-**Decision:** implemented in the `WithBootNext` script variant with the drive-letter matching approach, which the real-hardware test above shows does not find anything on the actual ProBook. Not yet adopted as the default, and the path forward (elimination heuristic vs. shelving the idea) is an open decision, not yet made.
+**Decision:** the elimination heuristic above is implemented in the `WithBootNext` script variant. **Not part of the canonical script, not adopted as the default, and not planned for further work** — kept as an optional, dormant safety net. Still untested through an actual flash cycle on a ProBook (i.e. whether `BootNext` survives the reset at all remains unknown), and the project relies on the `BootOrder`-via-BCU mechanism (Step 1 + final block) as its one supported, working defense.

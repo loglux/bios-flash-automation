@@ -1,4 +1,4 @@
-# Boot Order reset during BIOS flash — confirmed risk and proposed mitigation
+# Boot Order reset during BIOS flash — bcdedit / BootSequence notes
 
 **Status:** the Boot Order reset itself is confirmed observed. The `BootNext` mitigation (elimination-based matching, after two earlier approaches failed on real hardware) is implemented in the `WithBootNext` variant, kept as an optional/dormant safety net — **not part of the canonical script, not adopted as default**. Whether `BootNext` actually survives the reset remains unverified. See "Where this leaves the mitigation" below.
 

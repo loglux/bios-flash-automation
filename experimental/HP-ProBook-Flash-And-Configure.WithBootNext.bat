@@ -107,7 +107,7 @@ REM  check is in :after_flash_confirmed, once the reboot has happened.
 REM
 REM  EXPERIMENTAL (this variant only): also set a one-time BootNext override
 REM  via bcdedit, as an extra safety net alongside the BootOrder fix above -
-REM  see experimental/Boot-Order-Reset-Risk.md. Unverified whether BootNext survives
+REM  see experimental/BCDEdit-BootSequence-Notes.md. Unverified whether BootNext survives
 REM  the same reset that can wipe BootOrder during this flash.
 REM ============================================
 call :SetBootNextUSB
@@ -337,7 +337,7 @@ goto :recheck_msuefi
 REM ============================================
 REM  One-time BootNext override via bcdedit (EXPERIMENTAL)
 REM  Extra safety net alongside :CheckAndFixBootOrder - not a replacement.
-REM  See experimental/Boot-Order-Reset-Risk.md for the rationale and open questions.
+REM  See experimental/BCDEdit-BootSequence-Notes.md for the rationale and open questions.
 REM
 REM  Matches by ELIMINATION, not by a positive USB signal. Real-hardware
 REM  testing (both an ordinary PC and the actual ProBook) showed neither a

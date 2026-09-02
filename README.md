@@ -71,6 +71,8 @@ Directly backing the canonical script (flash flags/timing, `config.txt` format).
 - [BIOS Flash Update (HP PDF)](https://h30434.www3.hp.com/psg/attachments/psg/Business-PC-Workstation-POS/34410/1/BIOS%20Flash%20Update.pdf)
 - [How to Update HP BIOS on Commercial Platforms — HP Developer Portal](https://developers.hp.com/hp-client-management/blog/how-update-hp-bios-commercial-platforms)
 - [bios1.txt — real config.txt dump for an HP ProBook 450 G1](https://h30434.www3.hp.com/psg/attachments/psg/Tablet/1373380/1/bios1.txt)
+- [HP BIOS Configuration Utility (BCU) User Guide (PDF)](https://ftp.hp.com/pub/caps-softpaq/cmit/whitepapers/BIOS_Configuration_Utility_User_Guide.pdf) — official command reference (`/getvalue`, `/setvalue`, `/GetConfig`, `/SetConfig`, `/cpwdfile`) and a sample config.txt
+- [How to change BIOS settings on a HP PC — HP Wolf Pro Security Support](https://support.hpwolf.com/s/article/How-to-change-BIOS-settings-on-a-HP-PC) — covers the four BCU/WMI setting types, including a real `UEFI Boot Order` example matching this project's own device-naming format, and the `/cpwdfile` password-file mechanism
 
 ---
 

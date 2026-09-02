@@ -20,7 +20,7 @@ The script is called **twice** in the overall imaging pipeline:
   ```
   The asterisk `*` marks the **currently selected** value. It's changed via `/setvalue`.
 
-- **Boot Order** is an **ordered list** of devices, not a single value. There's no asterisk at all — the whole setting describes the order in which the BIOS checks devices for booting. It cannot be changed with `/setvalue` — you need to dump the whole config (`/GetConfig`), edit the relevant block in the text file, and apply it back (`/SetConfig`).
+- **Boot Order** is an **ordered list** of devices, not a single value. There's no asterisk — the order itself is the current state. Confirmed on real hardware (2026-09-02): `/getvalue:"UEFI Boot Order"` does work for **reading** it, returning the whole list as one comma-separated `CDATA` value (e.g. `HDD:USB:1,HDD:M.2:1,NETWORK IPV4:EMBEDDED:1,...`) — same shape as any other `/getvalue` call, just without the `*` marker. **Writing** it is a separate question: `/setvalue` for a list like this is unconfirmed, so the fix path still dumps the whole config (`/GetConfig`), edits the relevant block in the text file, and applies it back (`/SetConfig`).
 
 Known behavior (confirmed on an HP support forum thread): after a successful BIOS flash, **Boot Order can revert to factory defaults**, even if the flash command itself reported success. That's why a second check is required **after** the flash, not just once at the start.
 
@@ -103,22 +103,20 @@ set "attempt=0"
 :retry_bootorder
 set /a attempt+=1
 
-biosconfigutility64 /GetConfig:"%TMPDIR%\config.txt" >nul 2>&1
+REM --- Check: read the whole list in one shot via /getvalue ---
+set "line="
+for /f "delims=" %%i in ('biosconfigutility64 /getvalue:"%BOOTSETTING%" ^| findstr "VALUE"') do set "line=%%i"
 
-REM --- Check: first line inside the block ---
-set "found_header="
-set "first_after="
-for /f "usebackq delims=" %%L in ("%TMPDIR%\config.txt") do (
-    if defined found_header if not defined first_after set "first_after=%%L"
-    if "%%L"=="%BOOTSETTING%" set "found_header=1"
-)
-
-if not defined found_header (
-    echo [ERROR] "%BOOTSETTING%" not found in config.txt
+if not defined line (
+    echo [ERROR] Could not read "%BOOTSETTING%" from BCU
     exit /b 1
 )
 
-echo !first_after! | findstr /i "USB" >nul
+set "bovalue=!line:*CDATA[=!"
+set "bovalue=!bovalue:]]></VALUE>=!"
+for /f "tokens=1 delims=," %%A in ("!bovalue!") do set "first_entry=%%A"
+
+echo !first_entry! | findstr /i "USB" >nul
 if !errorlevel! equ 0 (
     echo [OK] USB is first in boot order
     goto :eof
@@ -130,6 +128,8 @@ if !attempt! gtr 3 (
 )
 
 echo [FIX] USB not first, rewriting boot order ^(attempt !attempt!^)
+
+biosconfigutility64 /GetConfig:"%TMPDIR%\config.txt" >nul 2>&1
 
 REM --- Reorder: move USB line to the top of the Boot Order block ---
 set "newfile=%TMPDIR%\config_new.txt"
@@ -190,18 +190,19 @@ goto :retry_bootorder
 7. Capped at 3 attempts, after which it prints an explicit `[FAIL]` and returns exit code 1 (so the calling script can stop instead of continuing blindly).
 
 ### `:CheckAndFixBootOrder`
-1. Dumps the **entire** BIOS config to a file via `/GetConfig` (not a single value — all settings at once).
-2. Finds the `UEFI Boot Order` header line, takes the line **right after it** — the first entry in the boot list.
-3. If that line contains `USB` — everything is fine, exit.
-4. If not — walks the file line by line, finds the block boundaries (from the header to the first blank line), pulls out the line containing `USB`, moves it to the top of the block, keeps the rest in their original order.
+1. Reads the whole list in one call — `/getvalue:"UEFI Boot Order"` — and takes the first comma-separated entry.
+2. If that entry contains `USB` — everything is fine, exit.
+3. If not — dumps the **entire** BIOS config to a file via `/GetConfig` (not a single value — all settings at once), since the fix path still needs the file-based `/SetConfig` mechanism.
+4. Walks the file line by line, finds the block boundaries (from the header to the first blank line), pulls out the line containing `USB`, moves it to the top of the block, keeps the rest in their original order.
 5. Rewrites `config.txt` and applies it via `/SetConfig`.
-6. Re-checks — if it still didn't take (the known BCU bug), retries, up to 3 times.
+6. Re-checks via `/getvalue` again — if it still didn't take (the known BCU bug), retries, up to 3 times.
 
 ---
 
 ## Important caveats
 
 - **The `config.txt` format depends on the BCU version and model.** The line-parsing logic (block boundary = blank line, no indentation before device names) is based on the official example in HP's User Guide, but **on your actual ProBook 4 you should manually open `config.txt`** once after `/GetConfig` and confirm the format matches.
-- The script uses `UEFI Boot Order` — confirmed against a real config.txt dump for an HP ProBook 450 G1 (see the Full Script doc's Sources), which has two separate sections, `Legacy Boot Order` and `UEFI Boot Order` (there's no plain `Boot Order` on this model family). "UEFI" here is just part of the section's label, not a boot-mode choice — the entry we pick inside it is whichever line contains "USB", i.e. the physical flash drive, regardless of boot mode. The exact name can still differ on this specific unit/BIOS revision — verify with `/dumpall` or an unfiltered `/GetConfig` on-site.
+- The script uses `UEFI Boot Order` — confirmed against a real config.txt dump for an HP ProBook 450 G1 (see the Full Script doc's Sources), which has two separate sections, `Legacy Boot Order` and `UEFI Boot Order` (there's no plain `Boot Order` on this model family). "UEFI" here is just part of the section's label, not a boot-mode choice — the entry we pick inside it is whichever entry contains "USB", i.e. the physical flash drive, regardless of boot mode.
+- Device naming differs by model/BCU version — confirmed on the actual deployment WinPE (2026-09-02), `/getvalue:"UEFI Boot Order"` on the real target hardware returned short tokens like `HDD:USB:1,HDD:M.2:1,NETWORK IPV4:EMBEDDED:1,...`, not the longer `USB Hard Drive` / `Generic USB Device` style names seen in the ProBook 450 G1 reference dump. Only one entry contains "USB" on this real machine, so the ambiguity risk that reference dump raised (it had two "USB"-containing entries) doesn't apply here — but whether `/GetConfig`'s file output uses this same short format is unconfirmed, worth checking on-site if the fix path ever needs debugging.
 - The script does **not** check the physical fact that the USB drive is plugged in and detected by the USB controller at POST — that's a separate issue (discussed separately: Legacy Support/CSM, which port, USB 2.0 vs 3.0 controller).
 - Recommended to log every call (`>> log.txt 2>&1`) when used in a real imaging pipeline across many machines.

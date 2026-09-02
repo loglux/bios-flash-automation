@@ -206,21 +206,20 @@ set "attempt3=0"
 
 :retry_bootorder
 set /a attempt3+=1
-biosconfigutility64 /GetConfig:"%TMPDIR%\config.txt" >nul 2>&1
 
-set "found_header="
-set "first_after="
-for /f "usebackq delims=" %%L in ("%TMPDIR%\config.txt") do (
-    if defined found_header if not defined first_after set "first_after=%%L"
-    if "%%L"=="%BOOTSETTING%" set "found_header=1"
-)
+set "line="
+for /f "delims=" %%i in ('biosconfigutility64 /getvalue:"%BOOTSETTING%" ^| findstr "VALUE"') do set "line=%%i"
 
-if not defined found_header (
-    call :SetStage "ERROR: '%BOOTSETTING%' not found in config.txt"
+if not defined line (
+    call :SetStage "ERROR: could not read '%BOOTSETTING%'"
     exit /b 1
 )
 
-echo !first_after! | findstr /i "USB" >nul
+set "bovalue=!line:*CDATA[=!"
+set "bovalue=!bovalue:]]></VALUE>=!"
+for /f "tokens=1 delims=," %%A in ("!bovalue!") do set "first_entry=%%A"
+
+echo !first_entry! | findstr /i "USB" >nul
 if !errorlevel! equ 0 (
     call :SetStage "OK: USB is first in boot order"
     goto :eof
@@ -232,6 +231,8 @@ if !attempt3! gtr 3 (
 )
 
 call :SetStage "FIX: USB not first, rewriting boot order (attempt !attempt3!)"
+
+biosconfigutility64 /GetConfig:"%TMPDIR%\config.txt" >nul 2>&1
 
 set "newfile=%TMPDIR%\config_new.txt"
 if exist "%newfile%" del "%newfile%"

@@ -62,7 +62,11 @@ REM ============================================
 call :GetBiosVersion
 call :SetStage "Current BIOS version: !biosver! (target: %TARGET_VERSION%)"
 
-if /i "!biosver!"=="%TARGET_VERSION%" (
+REM Substring match, not exact equality - some platforms report the
+REM version with a product-code prefix (e.g. "X78 Ver. 01.04.08"), not
+REM the bare number, which would never equal TARGET_VERSION exactly.
+echo !biosver! | findstr /i /c:"%TARGET_VERSION%" >nul
+if !errorlevel! equ 0 (
     call :SetStage "OK: BIOS already at target version"
     if exist "%STATEFILE%" del "%STATEFILE%"
     goto :after_flash_confirmed

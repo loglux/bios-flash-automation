@@ -66,7 +66,7 @@ setlocal enabledelayedexpansion
 REM ============================================
 REM  SETTINGS
 REM ============================================
-set "TARGET_VERSION=10.04.08"
+set "TARGET_VERSION=01.04.08"
 set "MAXATTEMPTS=3"
 set "STAGELOG=%~dp0stage.log"
 set "TMPDIR=%~dp0temp"
@@ -80,7 +80,7 @@ REM   -r  do not reboot        -h  create HP_TOOLS partition if missing
 REM   -b  suspend BitLocker    -p  encrypted BIOS password file (if a BIOS
 REM                                password is set on the machines)
 set "FLASH_TOOL=%~dp0HPBIOSUPDREC64.exe"
-set "FLASH_IMAGE=%~dp0firmware\10.04.08.bin"
+set "FLASH_IMAGE=%~dp0firmware\01.04.08.bin"
 set "FLASH_LOG=%~dp0flash_result.log"
 
 REM --- Script B (Security Settings, including MS UEFI CA key) ---

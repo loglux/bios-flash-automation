@@ -5,7 +5,7 @@ REM Checks the current BIOS version against the target. If it already
 REM matches, exits with no action. If not, logs a message and launches
 REM A.bat (the BIOS flash script).
 
-set "TARGET_VERSION=10.04.08"
+set "TARGET_VERSION=01.04.08"
 set "FLASH_SCRIPT=%~dp0A.bat"
 
 set "biosver="

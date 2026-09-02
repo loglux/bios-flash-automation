@@ -87,6 +87,26 @@ These are code-quality/robustness improvements, not fixes to the architectural r
 - **A full rewrite is a real undertaking** — re-testing every code path from scratch, not a drop-in swap.
 - If PowerShell does turn out to be present, a full switch isn't necessarily the best use of that fact — selectively rewriting only the fragile parts (BCU XML parsing, Boot Order rewriting) inside the existing batch script, e.g. by shelling out to `powershell -command "..."` for just those pieces, is a lower-risk way to get most of the benefit without discarding the tested batch flow.
 
+## Fallback if `findstr` turns out to be unavailable
+
+Not observed on this hardware — `findstr` is a base Windows/System32 component, not an optional one like PowerShell, so this is precautionary, not a known problem. Kept here rather than in the canonical script, which stays `findstr`-only.
+
+Batch version (what the combined script uses for the BIOS version check):
+```bat
+echo !biosver! | findstr /i /c:"%TARGET_VERSION%" >nul
+if !errorlevel! equ 0 ( REM matches )
+```
+
+PowerShell equivalent, callable from batch if `findstr` is ever confirmed missing:
+```bat
+powershell -NoProfile -Command "if ('!biosver!' -match [regex]::Escape('%TARGET_VERSION%')) { exit 0 } else { exit 1 }"
+if !errorlevel! equ 0 (
+    call :SetStage "OK: BIOS already at target version"
+    ...
+)
+```
+`[regex]::Escape` matters here — without it, the literal dots in a version number like `01.04.08` would be interpreted as the regex wildcard "any character."
+
 ---
 
 ## Sources

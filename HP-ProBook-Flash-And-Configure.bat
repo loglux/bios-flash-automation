@@ -66,6 +66,10 @@ REM Substring match, not exact equality - some platforms report the
 REM version with a product-code prefix (e.g. "X78 Ver. 01.04.08"), not
 REM the bare number, which would never equal TARGET_VERSION exactly.
 echo !biosver! | findstr /i /c:"%TARGET_VERSION%" >nul
+REM Fallback if findstr is ever confirmed unavailable - comment out the
+REM line above and uncomment this one instead ([regex]::Escape matters:
+REM without it, the dots in a version number are read as "any char"):
+REM powershell -NoProfile -Command "if ('!biosver!' -match [regex]::Escape('%TARGET_VERSION%')) { exit 0 } else { exit 1 }"
 if !errorlevel! equ 0 (
     call :SetStage "OK: BIOS already at target version"
     if exist "%STATEFILE%" del "%STATEFILE%"

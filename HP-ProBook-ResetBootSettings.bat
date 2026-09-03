@@ -76,21 +76,21 @@ set "current="
 for /f "delims=" %%C in ('powershell -NoProfile -ExecutionPolicy Bypass -File "%PS_GETVALUE%" -Mode Enum') do set "current=%%C"
 
 if not defined current (
-    echo ERROR: could not read or parse value for '%sName%'
+    echo ERROR: could not read or parse value for '!sName!'
     exit /b 1
 )
 
-if /i "!current!"=="%sDesired%" (
-    echo OK: %sName% = !current!
+if /i "!current!"=="!sDesired!" (
+    echo OK: !sName! = !current!
     goto :eof
 )
 
 if !attempt! gtr 3 (
-    echo FAIL: %sName% still '!current!' after 3 attempts
+    echo FAIL: !sName! still '!current!' after 3 attempts
     exit /b 1
 )
 
-echo FIX: %sName% is '!current!' -^> setting to '%sDesired%' ^(attempt !attempt!^)
+echo FIX: !sName! is '!current!' -^> setting to '!sDesired!' ^(attempt !attempt!^)
 biosconfigutility64 /setvalue:"%sName%","%sDesired%" %PWDARG% >nul 2>&1
 goto :retry_simple
 
@@ -194,21 +194,21 @@ set "value="
 for /f "delims=" %%C in ('powershell -NoProfile -ExecutionPolicy Bypass -File "%PS_GETVALUE%"') do set "value=%%C"
 
 if not defined value (
-    echo ERROR: could not read '%nName%'
+    echo ERROR: could not read '!nName!'
     exit /b 1
 )
 
-if "!value!"=="%nDesired%" (
-    echo OK: %nName% = !value!
+if "!value!"=="!nDesired!" (
+    echo OK: !nName! = !value!
     goto :eof
 )
 
 if !attempt4! gtr 3 (
-    echo FAIL: %nName% still '!value!' after 3 attempts
+    echo FAIL: !nName! still '!value!' after 3 attempts
     exit /b 1
 )
 
-echo FIX: %nName% is '!value!' -^> setting to '%nDesired%' ^(attempt !attempt4!^)
+echo FIX: !nName! is '!value!' -^> setting to '!nDesired!' ^(attempt !attempt4!^)
 biosconfigutility64 /setvalue:"%nName%","%nDesired%" %PWDARG% >nul 2>&1
 goto :retry_number
 
@@ -223,9 +223,9 @@ set "value="
 for /f "delims=" %%C in ('powershell -NoProfile -ExecutionPolicy Bypass -File "%PS_GETVALUE%"') do set "value=%%C"
 
 if not defined value (
-    echo %vName%: could not read
+    echo !vName!: could not read
     goto :eof
 )
 
-echo %vName%: !value!
+echo !vName!: !value!
 goto :eof

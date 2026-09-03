@@ -8,22 +8,6 @@ REM then runs the same A/B/C pipeline as v3: checks the BIOS version
 REM and launches A.bat if it doesn't match, gates on "Enable MS UEFI
 REM CA key" and launches B.bat if needed, then launches C.bat once
 REM both are confirmed.
-REM
-REM Uses PowerShell instead of findstr throughout - findstr confirmed
-REM missing from this project's WinPE on-site (2026-09-02). The
-REM PowerShell logic lives in separate .ps1 files (HP-ProBook-
-REM GetBiosValue.ps1, HP-ProBook-CheckBootOrderFirst.ps1 is not needed
-REM here - Boot Order uses HP-ProBook-FindConfigLine.ps1 for the fix
-REM path), called via "-File" with inputs passed through environment
-REM variables - not embedded as inline "-Command" text. Confirmed
-REM on-site (2026-09-03) that embedding PowerShell code with
-REM parentheses directly in a "for /f (...)" call breaks cmd.exe's
-REM parser, and that PowerShell doesn't search the current directory
-REM for executables like biosconfigutility64 the way cmd.exe does.
-REM
-REM "Startup Delay (sec.)" confirmed enum-style on real hardware
-REM (2026-09-03), same shape as Fast Boot - checked/fixed via
-REM :CheckAndFixSimpleSetting like Fast Boot.
 
 set "TARGET_VERSION=01.04.08"
 set "FLASH_SCRIPT=%~dp0A.bat"

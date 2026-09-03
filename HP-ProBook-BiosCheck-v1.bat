@@ -22,9 +22,7 @@ if not defined biosver (
 REM Substring match, not exact equality - some platforms report the
 REM version with a product-code prefix (e.g. "X78 Ver. 01.04.08"), not
 REM the bare number, which would never equal TARGET_VERSION exactly.
-REM Uses PowerShell, not findstr - confirmed missing from this
-REM project's WinPE on-site (2026-09-02). [regex]::Escape matters:
-REM without it, the dots in a version number are read as "any char".
+REM [regex]::Escape matters: without it, dots are read as "any char".
 powershell -NoProfile -Command "if ('!biosver!' -match [regex]::Escape('%TARGET_VERSION%')) { exit 0 } else { exit 1 }"
 if !errorlevel! equ 0 (
     echo OK: BIOS already at target version %TARGET_VERSION%

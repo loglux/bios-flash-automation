@@ -5,24 +5,8 @@ REM Checks and fixes three boot-related BIOS settings: Fast Boot,
 REM Boot Order (USB first), and Startup Delay. Prints the current
 REM value of all three to the screen at the end.
 REM
-REM Uses PowerShell instead of findstr throughout - findstr confirmed
-REM missing from this project's WinPE on-site (2026-09-02). The
-REM PowerShell logic lives in separate .ps1 files (HP-ProBook-
-REM GetBiosValue.ps1, HP-ProBook-FindConfigLine.ps1), called via
-REM "-File" with inputs passed through environment variables - not
-REM embedded as inline "-Command" text. Confirmed on-site (2026-09-03)
-REM that embedding PowerShell code with parentheses directly in a
-REM "for /f (...)" call breaks cmd.exe's parser ("was unexpected at
-REM this time"), even when the parentheses are inside quotes; this is
-REM a documented cmd.exe limitation (the FOR /F parser itself scans
-REM the command text for parentheses), not something quoting can fix.
-REM
-REM "Startup Delay (sec.)" confirmed on real hardware (2026-09-03) -
-REM both the setting name and that it's enum-style, not a plain
-REM number: /getvalue returns the full allowed range with the current
-REM one asterisk-marked (e.g. "*0,5,10,...,60"), same shape as Fast
-REM Boot. Checked/fixed via :CheckAndFixSimpleSetting like Fast Boot,
-REM not a separate numeric-setting routine.
+REM Startup Delay is enum-style like Fast Boot, not a plain number -
+REM checked/fixed via :CheckAndFixSimpleSetting.
 
 set "TMPDIR=%~dp0temp"
 if not exist "%TMPDIR%" mkdir "%TMPDIR%"

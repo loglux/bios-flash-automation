@@ -4,17 +4,6 @@ param([string]$Mode = 'Raw')
 # by the calling .bat file) and prints its value.
 # Mode Raw  - the full CDATA content as-is (plain string or comma list)
 # Mode Enum - the asterisk-marked current selection from an enum list
-#
-# Called via "-File", not "-Command", and takes the setting name via
-# an environment variable rather than a command-line argument: cmd.exe's
-# "for /f ('...')" parser can break on parentheses anywhere in the
-# command text it captures, including ones coming from setting names
-# like "Startup Delay (sec.)" - confirmed on-site, 2026-09-03.
-#
-# biosconfigutility64 is called via $PSScriptRoot, not by bare name -
-# unlike cmd.exe, PowerShell does not search the current directory for
-# executables, only $env:PATH - confirmed on-site, 2026-09-03 (every
-# setting came back empty/error until this was added).
 
 $name = $env:_pname
 $exe = Join-Path $PSScriptRoot 'biosconfigutility64.exe'

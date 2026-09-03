@@ -30,9 +30,7 @@ if not defined biosver (
 REM Substring match, not exact equality - some platforms report the
 REM version with a product-code prefix (e.g. "X78 Ver. 01.04.08"), not
 REM the bare number, which would never equal TARGET_VERSION exactly.
-REM Uses PowerShell, not findstr - confirmed missing from this
-REM project's WinPE on-site (2026-09-02). [regex]::Escape matters:
-REM without it, the dots in a version number are read as "any char".
+REM [regex]::Escape matters: without it, dots are read as "any char".
 powershell -NoProfile -Command "if ('!biosver!' -match [regex]::Escape('%TARGET_VERSION%')) { exit 0 } else { exit 1 }"
 if !errorlevel! neq 0 (
     echo BIOS version is !biosver!, expected %TARGET_VERSION% - launching flash script
@@ -62,15 +60,7 @@ set "attempt=0"
 :recheck_msuefi
 set /a attempt+=1
 
-REM Uses the shared HP-ProBook-GetBiosValue.ps1 helper (Enum mode),
-REM called via "-File" with the setting name passed through the
-REM _pname environment variable - not inline "-Command" text. Both
-REM matter: cmd.exe's "for /f (...)" parser breaks on parentheses in
-REM the command text, and PowerShell doesn't search the current
-REM directory for executables like biosconfigutility64 the way
-REM cmd.exe does - both confirmed on-site, 2026-09-03. See
-REM HP-ProBook-GetBiosValue.ps1 and HP-ProBook-CheckBootSettings.bat
-REM for the same pattern used elsewhere.
+REM Uses the shared HP-ProBook-GetBiosValue.ps1 helper (Enum mode).
 set "_pname=%sName%"
 set "current="
 for /f "delims=" %%C in ('powershell -NoProfile -ExecutionPolicy Bypass -File "%PS_GETVALUE%" -Mode Enum') do set "current=%%C"

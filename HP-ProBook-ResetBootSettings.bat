@@ -5,31 +5,10 @@ REM Resets boot-related BIOS settings back to factory defaults:
 REM Fast Boot -> Enable, Boot Order -> disk first (not USB), Startup
 REM Delay -> 0. Prints starting and final state to the screen.
 REM
-REM Uses PowerShell instead of findstr throughout - findstr confirmed
-REM missing from this project's WinPE on-site (2026-09-02). The
-REM PowerShell logic lives in separate .ps1 files (HP-ProBook-
-REM GetBiosValue.ps1, HP-ProBook-FindConfigLine.ps1), called via
-REM "-File" with inputs passed through environment variables - not
-REM embedded as inline "-Command" text. Confirmed on-site (2026-09-03)
-REM that embedding PowerShell code with parentheses directly in a
-REM "for /f (...)" call breaks cmd.exe's parser ("was unexpected at
-REM this time"), even when the parentheses are inside quotes; this is
-REM a documented cmd.exe limitation (the FOR /F parser itself scans
-REM the command text for parentheses), not something quoting can fix.
-REM
-REM PWD_FILE: optional current-password file for biosconfigutility64,
-REM only needed if a BIOS Setup password is already set on this
-REM machine (e.g. running this on a machine that already went through
-REM B.bat, which is what actually sets the password - not something
-REM this script or A.bat's password file has anything to do with).
-REM Empty by default - not used. If /setvalue or /SetConfig calls
-REM start failing with a password-related error, set this to the
-REM password file name; it gets appended to every write call below.
-REM
-REM "Startup Delay (sec.)" confirmed enum-style on real hardware
-REM (2026-09-03), same shape as Fast Boot - checked/fixed via
-REM :CheckAndFixSimpleSetting, not a separate numeric-setting routine.
-set "PWD_FILE="
+REM PWD_FILE: current-password file for biosconfigutility64. Defaults
+REM to "hpbiospw.bin" - the real password B.bat sets via /npwdfile.
+REM Clear it if targeting a machine that never ran B.bat.
+set "PWD_FILE=hpbiospw.bin"
 
 set "TMPDIR=%~dp0temp"
 if not exist "%TMPDIR%" mkdir "%TMPDIR%"

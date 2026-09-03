@@ -7,18 +7,6 @@ REM device correctly. Same three settings (Fast Boot, Boot Order,
 REM Startup Delay), but the Boot Order fix writes a hardcoded full list
 REM via /setvalue instead of /GetConfig + file edit + /SetConfig.
 REM
-REM Uses PowerShell instead of findstr throughout - findstr confirmed
-REM missing from this project's WinPE on-site (2026-09-02). The
-REM PowerShell logic lives in separate .ps1 files (HP-ProBook-
-REM GetBiosValue.ps1, HP-ProBook-CheckBootOrderFirst.ps1), called via
-REM "-File" with inputs passed through environment variables - not
-REM embedded as inline "-Command" text. Confirmed on-site (2026-09-03)
-REM that embedding PowerShell code with parentheses directly in a
-REM "for /f (...)" call breaks cmd.exe's parser ("was unexpected at
-REM this time"), even when the parentheses are inside quotes; this is
-REM a documented cmd.exe limitation (the FOR /F parser itself scans
-REM the command text for parentheses), not something quoting can fix.
-REM
 REM Simpler code, but two real tradeoffs:
 REM - The device list below is specific to the exact machine this was
 REM   captured on (2026-09-02, real ProBook, /getvalue:"UEFI Boot
@@ -34,9 +22,8 @@ REM
 REM HP-ProBook-CheckBootSettings.bat (the non-hardcoded version) stays
 REM the one actually relied on until this is verified.
 REM
-REM "Startup Delay (sec.)" confirmed enum-style on real hardware
-REM (2026-09-03), same shape as Fast Boot - checked/fixed via
-REM :CheckAndFixSimpleSetting, not a separate numeric-setting routine.
+REM Startup Delay is enum-style like Fast Boot, not a plain number -
+REM checked/fixed via :CheckAndFixSimpleSetting.
 
 set "TMPDIR=%~dp0temp"
 if not exist "%TMPDIR%" mkdir "%TMPDIR%"

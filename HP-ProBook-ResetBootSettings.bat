@@ -73,7 +73,7 @@ set /a attempt+=1
 
 set "_pname=%sName%"
 set "current="
-for /f "delims=" %%C in ('powershell -NoProfile -File "%PS_GETVALUE%" -Mode Enum') do set "current=%%C"
+for /f "delims=" %%C in ('powershell -NoProfile -ExecutionPolicy Bypass -File "%PS_GETVALUE%" -Mode Enum') do set "current=%%C"
 
 if not defined current (
     echo ERROR: could not read or parse value for '%sName%'
@@ -108,7 +108,7 @@ set /a attempt3+=1
 set "_pname=%BOOTSETTING%"
 set "bostatus="
 set "first_entry="
-for /f "tokens=1,* delims=|" %%A in ('powershell -NoProfile -File "%PS_BOOTFIRST%"') do (
+for /f "tokens=1,* delims=|" %%A in ('powershell -NoProfile -ExecutionPolicy Bypass -File "%PS_BOOTFIRST%"') do (
     set "bostatus=%%A"
     set "first_entry=%%B"
 )
@@ -143,7 +143,7 @@ set "_pcfg=%TMPDIR%\config.txt"
 set "_pname=%BOOTSETTING%"
 set "_ppattern=(?i)USB|Network|Ethernet|IPV4|IPV6|PXE|WI-FI|WIFI"
 set "disk_line="
-for /f "delims=" %%D in ('powershell -NoProfile -File "%PS_FINDLINE%" -Exclude') do set "disk_line=%%D"
+for /f "delims=" %%D in ('powershell -NoProfile -ExecutionPolicy Bypass -File "%PS_FINDLINE%" -Exclude') do set "disk_line=%%D"
 
 if not defined disk_line (
     echo ERROR: could not find a non-USB, non-network entry to move to the top
@@ -191,7 +191,7 @@ set /a attempt4+=1
 
 set "_pname=%nName%"
 set "value="
-for /f "delims=" %%C in ('powershell -NoProfile -File "%PS_GETVALUE%"') do set "value=%%C"
+for /f "delims=" %%C in ('powershell -NoProfile -ExecutionPolicy Bypass -File "%PS_GETVALUE%"') do set "value=%%C"
 
 if not defined value (
     echo ERROR: could not read '%nName%'
@@ -220,7 +220,7 @@ REM ============================================
 set "vName=%~1"
 set "_pname=%vName%"
 set "value="
-for /f "delims=" %%C in ('powershell -NoProfile -File "%PS_GETVALUE%"') do set "value=%%C"
+for /f "delims=" %%C in ('powershell -NoProfile -ExecutionPolicy Bypass -File "%PS_GETVALUE%"') do set "value=%%C"
 
 if not defined value (
     echo %vName%: could not read

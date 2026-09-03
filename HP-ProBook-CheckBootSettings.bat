@@ -67,7 +67,7 @@ set /a attempt+=1
 
 set "_pname=%sName%"
 set "current="
-for /f "delims=" %%C in ('powershell -NoProfile -File "%PS_GETVALUE%" -Mode Enum') do set "current=%%C"
+for /f "delims=" %%C in ('powershell -NoProfile -ExecutionPolicy Bypass -File "%PS_GETVALUE%" -Mode Enum') do set "current=%%C"
 
 if not defined current (
     echo ERROR: could not read or parse value for '%sName%'
@@ -101,7 +101,7 @@ set /a attempt3+=1
 set "_pname=%BOOTSETTING%"
 set "bostatus="
 set "first_entry="
-for /f "tokens=1,* delims=|" %%A in ('powershell -NoProfile -File "%PS_BOOTFIRST%"') do (
+for /f "tokens=1,* delims=|" %%A in ('powershell -NoProfile -ExecutionPolicy Bypass -File "%PS_BOOTFIRST%"') do (
     set "bostatus=%%A"
     set "first_entry=%%B"
 )
@@ -132,7 +132,7 @@ set "_pcfg=%TMPDIR%\config.txt"
 set "_pname=%BOOTSETTING%"
 set "_ppattern=USB"
 set "usb_line="
-for /f "delims=" %%U in ('powershell -NoProfile -File "%PS_FINDLINE%"') do set "usb_line=%%U"
+for /f "delims=" %%U in ('powershell -NoProfile -ExecutionPolicy Bypass -File "%PS_FINDLINE%"') do set "usb_line=%%U"
 
 if not defined usb_line (
     echo ERROR: could not find a USB entry in '%BOOTSETTING%' block
@@ -181,7 +181,7 @@ set /a attempt4+=1
 
 set "_pname=%nName%"
 set "value="
-for /f "delims=" %%C in ('powershell -NoProfile -File "%PS_GETVALUE%"') do set "value=%%C"
+for /f "delims=" %%C in ('powershell -NoProfile -ExecutionPolicy Bypass -File "%PS_GETVALUE%"') do set "value=%%C"
 
 if not defined value (
     echo ERROR: could not read '%nName%'
@@ -210,7 +210,7 @@ REM ============================================
 set "vName=%~1"
 set "_pname=%vName%"
 set "value="
-for /f "delims=" %%C in ('powershell -NoProfile -File "%PS_GETVALUE%"') do set "value=%%C"
+for /f "delims=" %%C in ('powershell -NoProfile -ExecutionPolicy Bypass -File "%PS_GETVALUE%"') do set "value=%%C"
 
 if not defined value (
     echo %vName%: could not read

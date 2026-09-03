@@ -6,14 +6,16 @@ REM Fast Boot -> Enable, Boot Order -> disk first (not USB), Startup
 REM Delay -> 0. Prints starting and final state to the screen.
 REM
 REM Uses PowerShell instead of findstr throughout - findstr confirmed
-REM missing from this project's WinPE on-site (2026-09-02).
-REM
-REM Setting names/paths are passed to PowerShell via environment
-REM variables ($env:...), never substituted as literal text into the
-REM command line - "Startup Delay (sec.)" contains parentheses, which
-REM broke cmd.exe's block parser when substituted directly inside a
-REM "for /f (...)" call (confirmed on-site, 2026-09-03: "was
-REM unexpected at this time").
+REM missing from this project's WinPE on-site (2026-09-02). The
+REM PowerShell logic lives in separate .ps1 files (HP-ProBook-
+REM GetBiosValue.ps1, HP-ProBook-FindConfigLine.ps1), called via
+REM "-File" with inputs passed through environment variables - not
+REM embedded as inline "-Command" text. Confirmed on-site (2026-09-03)
+REM that embedding PowerShell code with parentheses directly in a
+REM "for /f (...)" call breaks cmd.exe's parser ("was unexpected at
+REM this time"), even when the parentheses are inside quotes; this is
+REM a documented cmd.exe limitation (the FOR /F parser itself scans
+REM the command text for parentheses), not something quoting can fix.
 REM
 REM PWD_FILE: optional current-password file for biosconfigutility64,
 REM only needed if a BIOS Setup password is already set on this
@@ -34,6 +36,10 @@ set "STARTUP_DELAY_DESIRED=0"
 
 set "PWDARG="
 if defined PWD_FILE set PWDARG=/cpwdfile:"%PWD_FILE%"
+
+set "PS_GETVALUE=%~dp0HP-ProBook-GetBiosValue.ps1"
+set "PS_BOOTFIRST=%~dp0HP-ProBook-CheckBootOrderFirst.ps1"
+set "PS_FINDLINE=%~dp0HP-ProBook-FindConfigLine.ps1"
 
 echo === Starting state ===
 call :ShowValue "Fast Boot"
@@ -67,7 +73,7 @@ set /a attempt+=1
 
 set "_pname=%sName%"
 set "current="
-for /f "delims=" %%C in ('powershell -NoProfile -Command "$raw = (biosconfigutility64 /getvalue:$env:_pname) -join [char]10; if ($raw -match '(?s)<!\[CDATA\[(.*?)\]\]>') { foreach ($tok in ($matches[1] -split ',')) { if ($tok -match '^\*') { $tok -replace '^\*',''; break } } }"') do set "current=%%C"
+for /f "delims=" %%C in ('powershell -NoProfile -File "%PS_GETVALUE%" -Mode Enum') do set "current=%%C"
 
 if not defined current (
     echo ERROR: could not read or parse value for '%sName%'
@@ -102,7 +108,7 @@ set /a attempt3+=1
 set "_pname=%BOOTSETTING%"
 set "bostatus="
 set "first_entry="
-for /f "tokens=1,* delims=|" %%A in ('powershell -NoProfile -Command "$raw = (biosconfigutility64 /getvalue:$env:_pname) -join [char]10; if ($raw -match '(?s)<!\[CDATA\[(.*?)\]\]>') { $first = ($matches[1] -split ',')[0]; if ($first -match 'USB') { 'ISUSB|' + $first } else { 'NOTUSB|' + $first } } else { 'ERROR|' }"') do (
+for /f "tokens=1,* delims=|" %%A in ('powershell -NoProfile -File "%PS_BOOTFIRST%"') do (
     set "bostatus=%%A"
     set "first_entry=%%B"
 )
@@ -112,7 +118,7 @@ if "!bostatus!"=="ERROR" (
     exit /b 1
 )
 
-if "!bostatus!"=="NOTUSB" (
+if "!bostatus!"=="NOMATCH" (
     echo OK: disk is first in boot order ^(!first_entry!^)
     goto :eof
 )
@@ -132,12 +138,12 @@ if exist "%newfile%" del "%newfile%"
 REM Find the disk entry: first line in the block that isn't USB,
 REM network, PXE, or Wi-Fi - same elimination approach already used
 REM for the BootNext firmware-entry lookup (see
-REM experimental/BCDEdit-BootSequence-Notes.md). One PowerShell call
-REM instead of a findstr-based batch loop.
+REM experimental/BCDEdit-BootSequence-Notes.md).
 set "_pcfg=%TMPDIR%\config.txt"
 set "_pname=%BOOTSETTING%"
+set "_ppattern=(?i)USB|Network|Ethernet|IPV4|IPV6|PXE|WI-FI|WIFI"
 set "disk_line="
-for /f "delims=" %%D in ('powershell -NoProfile -Command "$lines = Get-Content $env:_pcfg; $inBlock = $false; $diskLine = $null; foreach ($l in $lines) { if ($inBlock -and $l -ne '' -and -not $diskLine -and $l -notmatch '(?i)USB|Network|Ethernet|IPV4|IPV6|PXE|WI-FI|WIFI') { $diskLine = $l }; if ($l -eq $env:_pname) { $inBlock = $true }; if ($inBlock -and $l -eq '') { $inBlock = $false } }; $diskLine"') do set "disk_line=%%D"
+for /f "delims=" %%D in ('powershell -NoProfile -File "%PS_FINDLINE%" -Exclude') do set "disk_line=%%D"
 
 if not defined disk_line (
     echo ERROR: could not find a non-USB, non-network entry to move to the top
@@ -185,7 +191,7 @@ set /a attempt4+=1
 
 set "_pname=%nName%"
 set "value="
-for /f "delims=" %%C in ('powershell -NoProfile -Command "$raw = (biosconfigutility64 /getvalue:$env:_pname) -join [char]10; if ($raw -match '(?s)<!\[CDATA\[(.*?)\]\]>') { $matches[1] }"') do set "value=%%C"
+for /f "delims=" %%C in ('powershell -NoProfile -File "%PS_GETVALUE%"') do set "value=%%C"
 
 if not defined value (
     echo ERROR: could not read '%nName%'
@@ -214,7 +220,7 @@ REM ============================================
 set "vName=%~1"
 set "_pname=%vName%"
 set "value="
-for /f "delims=" %%C in ('powershell -NoProfile -Command "$raw = (biosconfigutility64 /getvalue:$env:_pname) -join [char]10; if ($raw -match '(?s)<!\[CDATA\[(.*?)\]\]>') { $matches[1] }"') do set "value=%%C"
+for /f "delims=" %%C in ('powershell -NoProfile -File "%PS_GETVALUE%"') do set "value=%%C"
 
 if not defined value (
     echo %vName%: could not read

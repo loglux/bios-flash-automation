@@ -8,14 +8,16 @@ REM Startup Delay), but the Boot Order fix writes a hardcoded full list
 REM via /setvalue instead of /GetConfig + file edit + /SetConfig.
 REM
 REM Uses PowerShell instead of findstr throughout - findstr confirmed
-REM missing from this project's WinPE on-site (2026-09-02).
-REM
-REM Setting names are passed to PowerShell via environment variables
-REM ($env:...), never substituted as literal text into the command
-REM line - "Startup Delay (sec.)" contains parentheses, which broke
-REM cmd.exe's block parser when substituted directly inside a
-REM "for /f (...)" call (confirmed on-site, 2026-09-03: "was
-REM unexpected at this time").
+REM missing from this project's WinPE on-site (2026-09-02). The
+REM PowerShell logic lives in separate .ps1 files (HP-ProBook-
+REM GetBiosValue.ps1, HP-ProBook-CheckBootOrderFirst.ps1), called via
+REM "-File" with inputs passed through environment variables - not
+REM embedded as inline "-Command" text. Confirmed on-site (2026-09-03)
+REM that embedding PowerShell code with parentheses directly in a
+REM "for /f (...)" call breaks cmd.exe's parser ("was unexpected at
+REM this time"), even when the parentheses are inside quotes; this is
+REM a documented cmd.exe limitation (the FOR /F parser itself scans
+REM the command text for parentheses), not something quoting can fix.
 REM
 REM Simpler code, but two real tradeoffs:
 REM - The device list below is specific to the exact machine this was
@@ -43,6 +45,9 @@ REM Captured via "biosconfigutility64 /getvalue:%BOOTSETTING%" on the
 REM real target hardware, 2026-09-02 - USB already first at capture
 REM time, kept in that order here.
 set "USB_FIRST_ORDER=HDD:USB:1,HDD:M.2:1,NETWORK IPV4:EMBEDDED:1,NETWORK IPV6:EMBEDDED:1,WI-FI NETWORK IPV4:EMBEDDED:1,WI-FI NETWORK IPV6:EMBEDDED:1"
+
+set "PS_GETVALUE=%~dp0HP-ProBook-GetBiosValue.ps1"
+set "PS_BOOTFIRST=%~dp0HP-ProBook-CheckBootOrderFirst.ps1"
 
 echo === Starting state ===
 call :ShowValue "Fast Boot"
@@ -76,7 +81,7 @@ set /a attempt+=1
 
 set "_pname=%sName%"
 set "current="
-for /f "delims=" %%C in ('powershell -NoProfile -Command "$raw = (biosconfigutility64 /getvalue:$env:_pname) -join [char]10; if ($raw -match '(?s)<!\[CDATA\[(.*?)\]\]>') { foreach ($tok in ($matches[1] -split ',')) { if ($tok -match '^\*') { $tok -replace '^\*',''; break } } }"') do set "current=%%C"
+for /f "delims=" %%C in ('powershell -NoProfile -File "%PS_GETVALUE%" -Mode Enum') do set "current=%%C"
 
 if not defined current (
     echo ERROR: could not read or parse value for '%sName%'
@@ -110,7 +115,7 @@ set /a attempt3+=1
 set "_pname=%BOOTSETTING%"
 set "bostatus="
 set "first_entry="
-for /f "tokens=1,* delims=|" %%A in ('powershell -NoProfile -Command "$raw = (biosconfigutility64 /getvalue:$env:_pname) -join [char]10; if ($raw -match '(?s)<!\[CDATA\[(.*?)\]\]>') { $first = ($matches[1] -split ',')[0]; if ($first -match 'USB') { 'MATCH|' + $first } else { 'NOMATCH|' + $first } } else { 'ERROR|' }"') do (
+for /f "tokens=1,* delims=|" %%A in ('powershell -NoProfile -File "%PS_BOOTFIRST%"') do (
     set "bostatus=%%A"
     set "first_entry=%%B"
 )
@@ -148,7 +153,7 @@ set /a attempt4+=1
 
 set "_pname=%nName%"
 set "value="
-for /f "delims=" %%C in ('powershell -NoProfile -Command "$raw = (biosconfigutility64 /getvalue:$env:_pname) -join [char]10; if ($raw -match '(?s)<!\[CDATA\[(.*?)\]\]>') { $matches[1] }"') do set "value=%%C"
+for /f "delims=" %%C in ('powershell -NoProfile -File "%PS_GETVALUE%"') do set "value=%%C"
 
 if not defined value (
     echo ERROR: could not read '%nName%'
@@ -177,7 +182,7 @@ REM ============================================
 set "vName=%~1"
 set "_pname=%vName%"
 set "value="
-for /f "delims=" %%C in ('powershell -NoProfile -Command "$raw = (biosconfigutility64 /getvalue:$env:_pname) -join [char]10; if ($raw -match '(?s)<!\[CDATA\[(.*?)\]\]>') { $matches[1] }"') do set "value=%%C"
+for /f "delims=" %%C in ('powershell -NoProfile -File "%PS_GETVALUE%"') do set "value=%%C"
 
 if not defined value (
     echo %vName%: could not read

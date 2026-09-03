@@ -8,6 +8,13 @@ REM
 REM Uses PowerShell instead of findstr throughout - findstr confirmed
 REM missing from this project's WinPE on-site (2026-09-02).
 REM
+REM Setting names/paths are passed to PowerShell via environment
+REM variables ($env:...), never substituted as literal text into the
+REM command line - "Startup Delay (sec.)" contains parentheses, which
+REM broke cmd.exe's block parser when substituted directly inside a
+REM "for /f (...)" call (confirmed on-site, 2026-09-03: "was
+REM unexpected at this time").
+REM
 REM PWD_FILE: optional current-password file for biosconfigutility64,
 REM only needed if a BIOS Setup password is already set on this
 REM machine (e.g. running this on a machine that already went through
@@ -58,8 +65,9 @@ set "attempt=0"
 :retry_simple
 set /a attempt+=1
 
+set "_pname=%sName%"
 set "current="
-for /f "delims=" %%C in ('powershell -NoProfile -Command "$raw = (biosconfigutility64 /getvalue:'%sName%') -join [char]10; if ($raw -match '(?s)<!\[CDATA\[(.*?)\]\]>') { foreach ($tok in ($matches[1] -split ',')) { if ($tok -match '^\*') { $tok -replace '^\*',''; break } } }"') do set "current=%%C"
+for /f "delims=" %%C in ('powershell -NoProfile -Command "$raw = (biosconfigutility64 /getvalue:$env:_pname) -join [char]10; if ($raw -match '(?s)<!\[CDATA\[(.*?)\]\]>') { foreach ($tok in ($matches[1] -split ',')) { if ($tok -match '^\*') { $tok -replace '^\*',''; break } } }"') do set "current=%%C"
 
 if not defined current (
     echo ERROR: could not read or parse value for '%sName%'
@@ -91,9 +99,10 @@ set "attempt3=0"
 :retry_bootorder_reset
 set /a attempt3+=1
 
+set "_pname=%BOOTSETTING%"
 set "bostatus="
 set "first_entry="
-for /f "tokens=1,* delims=|" %%A in ('powershell -NoProfile -Command "$raw = (biosconfigutility64 /getvalue:'%BOOTSETTING%') -join [char]10; if ($raw -match '(?s)<!\[CDATA\[(.*?)\]\]>') { $first = ($matches[1] -split ',')[0]; if ($first -match 'USB') { 'ISUSB|' + $first } else { 'NOTUSB|' + $first } } else { 'ERROR|' }"') do (
+for /f "tokens=1,* delims=|" %%A in ('powershell -NoProfile -Command "$raw = (biosconfigutility64 /getvalue:$env:_pname) -join [char]10; if ($raw -match '(?s)<!\[CDATA\[(.*?)\]\]>') { $first = ($matches[1] -split ',')[0]; if ($first -match 'USB') { 'ISUSB|' + $first } else { 'NOTUSB|' + $first } } else { 'ERROR|' }"') do (
     set "bostatus=%%A"
     set "first_entry=%%B"
 )
@@ -125,8 +134,10 @@ REM network, PXE, or Wi-Fi - same elimination approach already used
 REM for the BootNext firmware-entry lookup (see
 REM experimental/BCDEdit-BootSequence-Notes.md). One PowerShell call
 REM instead of a findstr-based batch loop.
+set "_pcfg=%TMPDIR%\config.txt"
+set "_pname=%BOOTSETTING%"
 set "disk_line="
-for /f "delims=" %%D in ('powershell -NoProfile -Command "$lines = Get-Content '%TMPDIR%\config.txt'; $inBlock = $false; $diskLine = $null; foreach ($l in $lines) { if ($inBlock -and $l -ne '' -and -not $diskLine -and $l -notmatch '(?i)USB|Network|Ethernet|IPV4|IPV6|PXE|WI-FI|WIFI') { $diskLine = $l }; if ($l -eq '%BOOTSETTING%') { $inBlock = $true }; if ($inBlock -and $l -eq '') { $inBlock = $false } }; $diskLine"') do set "disk_line=%%D"
+for /f "delims=" %%D in ('powershell -NoProfile -Command "$lines = Get-Content $env:_pcfg; $inBlock = $false; $diskLine = $null; foreach ($l in $lines) { if ($inBlock -and $l -ne '' -and -not $diskLine -and $l -notmatch '(?i)USB|Network|Ethernet|IPV4|IPV6|PXE|WI-FI|WIFI') { $diskLine = $l }; if ($l -eq $env:_pname) { $inBlock = $true }; if ($inBlock -and $l -eq '') { $inBlock = $false } }; $diskLine"') do set "disk_line=%%D"
 
 if not defined disk_line (
     echo ERROR: could not find a non-USB, non-network entry to move to the top
@@ -172,8 +183,9 @@ set "attempt4=0"
 :retry_number
 set /a attempt4+=1
 
+set "_pname=%nName%"
 set "value="
-for /f "delims=" %%C in ('powershell -NoProfile -Command "$raw = (biosconfigutility64 /getvalue:'%nName%') -join [char]10; if ($raw -match '(?s)<!\[CDATA\[(.*?)\]\]>') { $matches[1] }"') do set "value=%%C"
+for /f "delims=" %%C in ('powershell -NoProfile -Command "$raw = (biosconfigutility64 /getvalue:$env:_pname) -join [char]10; if ($raw -match '(?s)<!\[CDATA\[(.*?)\]\]>') { $matches[1] }"') do set "value=%%C"
 
 if not defined value (
     echo ERROR: could not read '%nName%'
@@ -200,8 +212,9 @@ REM  Print the raw current value of any setting to the screen
 REM ============================================
 :ShowValue
 set "vName=%~1"
+set "_pname=%vName%"
 set "value="
-for /f "delims=" %%C in ('powershell -NoProfile -Command "$raw = (biosconfigutility64 /getvalue:'%vName%') -join [char]10; if ($raw -match '(?s)<!\[CDATA\[(.*?)\]\]>') { $matches[1] }"') do set "value=%%C"
+for /f "delims=" %%C in ('powershell -NoProfile -Command "$raw = (biosconfigutility64 /getvalue:$env:_pname) -join [char]10; if ($raw -match '(?s)<!\[CDATA\[(.*?)\]\]>') { $matches[1] }"') do set "value=%%C"
 
 if not defined value (
     echo %vName%: could not read

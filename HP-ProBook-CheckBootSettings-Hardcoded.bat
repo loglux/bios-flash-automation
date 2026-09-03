@@ -10,6 +10,13 @@ REM
 REM Uses PowerShell instead of findstr throughout - findstr confirmed
 REM missing from this project's WinPE on-site (2026-09-02).
 REM
+REM Setting names are passed to PowerShell via environment variables
+REM ($env:...), never substituted as literal text into the command
+REM line - "Startup Delay (sec.)" contains parentheses, which broke
+REM cmd.exe's block parser when substituted directly inside a
+REM "for /f (...)" call (confirmed on-site, 2026-09-03: "was
+REM unexpected at this time").
+REM
 REM Simpler code, but two real tradeoffs:
 REM - The device list below is specific to the exact machine this was
 REM   captured on (2026-09-02, real ProBook, /getvalue:"UEFI Boot
@@ -67,8 +74,9 @@ set "attempt=0"
 :retry_simple
 set /a attempt+=1
 
+set "_pname=%sName%"
 set "current="
-for /f "delims=" %%C in ('powershell -NoProfile -Command "$raw = (biosconfigutility64 /getvalue:'%sName%') -join [char]10; if ($raw -match '(?s)<!\[CDATA\[(.*?)\]\]>') { foreach ($tok in ($matches[1] -split ',')) { if ($tok -match '^\*') { $tok -replace '^\*',''; break } } }"') do set "current=%%C"
+for /f "delims=" %%C in ('powershell -NoProfile -Command "$raw = (biosconfigutility64 /getvalue:$env:_pname) -join [char]10; if ($raw -match '(?s)<!\[CDATA\[(.*?)\]\]>') { foreach ($tok in ($matches[1] -split ',')) { if ($tok -match '^\*') { $tok -replace '^\*',''; break } } }"') do set "current=%%C"
 
 if not defined current (
     echo ERROR: could not read or parse value for '%sName%'
@@ -99,9 +107,10 @@ set "attempt3=0"
 :retry_bootorder_hc
 set /a attempt3+=1
 
+set "_pname=%BOOTSETTING%"
 set "bostatus="
 set "first_entry="
-for /f "tokens=1,* delims=|" %%A in ('powershell -NoProfile -Command "$raw = (biosconfigutility64 /getvalue:'%BOOTSETTING%') -join [char]10; if ($raw -match '(?s)<!\[CDATA\[(.*?)\]\]>') { $first = ($matches[1] -split ',')[0]; if ($first -match 'USB') { 'MATCH|' + $first } else { 'NOMATCH|' + $first } } else { 'ERROR|' }"') do (
+for /f "tokens=1,* delims=|" %%A in ('powershell -NoProfile -Command "$raw = (biosconfigutility64 /getvalue:$env:_pname) -join [char]10; if ($raw -match '(?s)<!\[CDATA\[(.*?)\]\]>') { $first = ($matches[1] -split ',')[0]; if ($first -match 'USB') { 'MATCH|' + $first } else { 'NOMATCH|' + $first } } else { 'ERROR|' }"') do (
     set "bostatus=%%A"
     set "first_entry=%%B"
 )
@@ -137,8 +146,9 @@ set "attempt4=0"
 :retry_number
 set /a attempt4+=1
 
+set "_pname=%nName%"
 set "value="
-for /f "delims=" %%C in ('powershell -NoProfile -Command "$raw = (biosconfigutility64 /getvalue:'%nName%') -join [char]10; if ($raw -match '(?s)<!\[CDATA\[(.*?)\]\]>') { $matches[1] }"') do set "value=%%C"
+for /f "delims=" %%C in ('powershell -NoProfile -Command "$raw = (biosconfigutility64 /getvalue:$env:_pname) -join [char]10; if ($raw -match '(?s)<!\[CDATA\[(.*?)\]\]>') { $matches[1] }"') do set "value=%%C"
 
 if not defined value (
     echo ERROR: could not read '%nName%'
@@ -165,8 +175,9 @@ REM  Print the raw current value of any setting to the screen
 REM ============================================
 :ShowValue
 set "vName=%~1"
+set "_pname=%vName%"
 set "value="
-for /f "delims=" %%C in ('powershell -NoProfile -Command "$raw = (biosconfigutility64 /getvalue:'%vName%') -join [char]10; if ($raw -match '(?s)<!\[CDATA\[(.*?)\]\]>') { $matches[1] }"') do set "value=%%C"
+for /f "delims=" %%C in ('powershell -NoProfile -Command "$raw = (biosconfigutility64 /getvalue:$env:_pname) -join [char]10; if ($raw -match '(?s)<!\[CDATA\[(.*?)\]\]>') { $matches[1] }"') do set "value=%%C"
 
 if not defined value (
     echo %vName%: could not read

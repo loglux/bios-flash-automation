@@ -11,6 +11,7 @@ REM re-checks, up to 2 times - never sets the value itself.
 set "TARGET_VERSION=01.04.08"
 set "FLASH_SCRIPT=%~dp0A.bat"
 set "SECURITY_SCRIPT=%~dp0B.bat"
+set "PS_GETVALUE=%~dp0HP-ProBook-GetBiosValue.ps1"
 
 set "biosver="
 for /f "skip=1 tokens=* delims=" %%V in ('wmic bios get smbiosbiosversion 2^>nul') do (
@@ -58,28 +59,35 @@ set "attempt=0"
 :recheck_msuefi
 set /a attempt+=1
 
-REM Uses PowerShell, not findstr - confirmed missing from this
-REM project's WinPE on-site (2026-09-02). Reads the CDATA value and
-REM pulls out the asterisk-marked current selection in one call.
+REM Uses the shared HP-ProBook-GetBiosValue.ps1 helper (Enum mode),
+REM called via "-File" with the setting name passed through the
+REM _pname environment variable - not inline "-Command" text. Both
+REM matter: cmd.exe's "for /f (...)" parser breaks on parentheses in
+REM the command text, and PowerShell doesn't search the current
+REM directory for executables like biosconfigutility64 the way
+REM cmd.exe does - both confirmed on-site, 2026-09-03. See
+REM HP-ProBook-GetBiosValue.ps1 and HP-ProBook-CheckBootSettings.bat
+REM for the same pattern used elsewhere.
+set "_pname=%sName%"
 set "current="
-for /f "delims=" %%C in ('powershell -NoProfile -Command "$raw = (biosconfigutility64 /getvalue:'%sName%') -join [char]10; if ($raw -match '(?s)<!\[CDATA\[(.*?)\]\]>') { foreach ($tok in ($matches[1] -split ',')) { if ($tok -match '^\*') { $tok -replace '^\*',''; break } } }"') do set "current=%%C"
+for /f "delims=" %%C in ('powershell -NoProfile -ExecutionPolicy Bypass -File "%PS_GETVALUE%" -Mode Enum') do set "current=%%C"
 
 if not defined current (
-    echo ERROR: could not read or parse value for '%sName%'
+    echo ERROR: could not read or parse value for '!sName!'
     exit /b 1
 )
 
-if /i "!current!"=="%sDesired%" (
-    echo OK: %sName% = !current!
+if /i "!current!"=="!sDesired!" (
+    echo OK: !sName! = !current!
     exit /b 0
 )
 
 if !attempt! gtr 2 (
-    echo FAIL: %sName% still '!current!' after running security script %attempt% time^(s^)
+    echo FAIL: !sName! still '!current!' after running security script !attempt! time^(s^)
     exit /b 1
 )
 
-echo NEEDED: %sName% = '!current!' - security script has not run ^(or failed^), launching it
+echo NEEDED: !sName! = '!current!' - security script has not run ^(or failed^), launching it
 
 if not exist "%SECURITY_SCRIPT%" (
     echo ERROR: security script not found at %SECURITY_SCRIPT%
@@ -87,5 +95,5 @@ if not exist "%SECURITY_SCRIPT%" (
 )
 
 call "%SECURITY_SCRIPT%"
-echo Security script finished ^(exit !errorlevel!^), re-checking %sName%
+echo Security script finished ^(exit !errorlevel!^), re-checking !sName!
 goto :recheck_msuefi

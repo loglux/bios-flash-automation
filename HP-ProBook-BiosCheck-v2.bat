@@ -26,7 +26,10 @@ if not defined biosver (
 REM Substring match, not exact equality - some platforms report the
 REM version with a product-code prefix (e.g. "X78 Ver. 01.04.08"), not
 REM the bare number, which would never equal TARGET_VERSION exactly.
-echo !biosver! | findstr /i /c:"%TARGET_VERSION%" >nul
+REM Uses PowerShell, not findstr - confirmed missing from this
+REM project's WinPE on-site (2026-09-02). [regex]::Escape matters:
+REM without it, the dots in a version number are read as "any char".
+powershell -NoProfile -Command "if ('!biosver!' -match [regex]::Escape('%TARGET_VERSION%')) { exit 0 } else { exit 1 }"
 if !errorlevel! neq 0 (
     echo BIOS version is !biosver!, expected %TARGET_VERSION% - launching flash script
 
@@ -54,24 +57,15 @@ set "attempt=0"
 
 :recheck_msuefi
 set /a attempt+=1
-set "line="
-for /f "delims=" %%i in ('biosconfigutility64 /getvalue:"%sName%" ^| findstr "VALUE"') do set "line=%%i"
 
-if not defined line (
-    echo ERROR: could not read '%sName%'
-    exit /b 1
-)
-
-set "value=!line:*CDATA[=!"
-set "value=!value:]]></VALUE>=!"
+REM Uses PowerShell, not findstr - confirmed missing from this
+REM project's WinPE on-site (2026-09-02). Reads the CDATA value and
+REM pulls out the asterisk-marked current selection in one call.
 set "current="
-for %%A in (%value:,= %) do (
-    set "tok=%%A"
-    if "!tok:~0,1!"=="*" set "current=!tok:~1!"
-)
+for /f "delims=" %%C in ('powershell -NoProfile -Command "$raw = (biosconfigutility64 /getvalue:'%sName%') -join [char]10; if ($raw -match '(?s)<!\[CDATA\[(.*?)\]\]>') { foreach ($tok in ($matches[1] -split ',')) { if ($tok -match '^\*') { $tok -replace '^\*',''; break } } }"') do set "current=%%C"
 
 if not defined current (
-    echo ERROR: could not parse value for '%sName%'
+    echo ERROR: could not read or parse value for '%sName%'
     exit /b 1
 )
 

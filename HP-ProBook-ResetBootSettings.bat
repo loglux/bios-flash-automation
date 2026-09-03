@@ -5,6 +5,9 @@ REM Resets boot-related BIOS settings back to factory defaults:
 REM Fast Boot -> Enable, Boot Order -> disk first (not USB), Startup
 REM Delay -> 0. Prints starting and final state to the screen.
 REM
+REM Uses PowerShell instead of findstr throughout - findstr confirmed
+REM missing from this project's WinPE on-site (2026-09-02).
+REM
 REM PWD_FILE: optional current-password file for biosconfigutility64,
 REM only needed if a BIOS Setup password is already set on this
 REM machine (e.g. running this on a machine that already went through
@@ -55,25 +58,11 @@ set "attempt=0"
 :retry_simple
 set /a attempt+=1
 
-set "line="
-for /f "delims=" %%i in ('biosconfigutility64 /getvalue:"%sName%" ^| findstr "VALUE"') do set "line=%%i"
-
-if not defined line (
-    echo ERROR: could not read '%sName%'
-    exit /b 1
-)
-
-set "value=!line:*CDATA[=!"
-set "value=!value:]]></VALUE>=!"
-
 set "current="
-for %%A in (%value:,= %) do (
-    set "tok=%%A"
-    if "!tok:~0,1!"=="*" set "current=!tok:~1!"
-)
+for /f "delims=" %%C in ('powershell -NoProfile -Command "$raw = (biosconfigutility64 /getvalue:'%sName%') -join [char]10; if ($raw -match '(?s)<!\[CDATA\[(.*?)\]\]>') { foreach ($tok in ($matches[1] -split ',')) { if ($tok -match '^\*') { $tok -replace '^\*',''; break } } }"') do set "current=%%C"
 
 if not defined current (
-    echo ERROR: could not parse value for '%sName%'
+    echo ERROR: could not read or parse value for '%sName%'
     exit /b 1
 )
 
@@ -102,21 +91,20 @@ set "attempt3=0"
 :retry_bootorder_reset
 set /a attempt3+=1
 
-set "line="
-for /f "delims=" %%i in ('biosconfigutility64 /getvalue:"%BOOTSETTING%" ^| findstr "VALUE"') do set "line=%%i"
+set "bostatus="
+set "first_entry="
+for /f "tokens=1,* delims=|" %%A in ('powershell -NoProfile -Command "$raw = (biosconfigutility64 /getvalue:'%BOOTSETTING%') -join [char]10; if ($raw -match '(?s)<!\[CDATA\[(.*?)\]\]>') { $first = ($matches[1] -split ',')[0]; if ($first -match 'USB') { 'ISUSB|' + $first } else { 'NOTUSB|' + $first } } else { 'ERROR|' }"') do (
+    set "bostatus=%%A"
+    set "first_entry=%%B"
+)
 
-if not defined line (
+if "!bostatus!"=="ERROR" (
     echo ERROR: could not read '%BOOTSETTING%'
     exit /b 1
 )
 
-set "bovalue=!line:*CDATA[=!"
-set "bovalue=!bovalue:]]></VALUE>=!"
-for /f "tokens=1 delims=," %%A in ("!bovalue!") do set "first_entry=%%A"
-
-echo !first_entry! | findstr /i "USB" >nul
-if !errorlevel! neq 0 (
-    echo OK: disk is first in boot order
+if "!bostatus!"=="NOTUSB" (
+    echo OK: disk is first in boot order ^(!first_entry!^)
     goto :eof
 )
 
@@ -135,18 +123,10 @@ if exist "%newfile%" del "%newfile%"
 REM Find the disk entry: first line in the block that isn't USB,
 REM network, PXE, or Wi-Fi - same elimination approach already used
 REM for the BootNext firmware-entry lookup (see
-REM experimental/BCDEdit-BootSequence-Notes.md).
-set "in_block=0"
+REM experimental/BCDEdit-BootSequence-Notes.md). One PowerShell call
+REM instead of a findstr-based batch loop.
 set "disk_line="
-for /f "usebackq delims=" %%L in ("%TMPDIR%\config.txt") do (
-    set "line=%%L"
-    if "!in_block!"=="1" if not "!line!"=="" if not defined disk_line (
-        echo !line! | findstr /i "USB Network Ethernet IPV4 IPV6 PXE WI-FI WIFI" >nul
-        if !errorlevel! neq 0 set "disk_line=!line!"
-    )
-    if "!line!"=="%BOOTSETTING%" set "in_block=1"
-    if "!in_block!"=="1" if "!line!"=="" set "in_block=0"
-)
+for /f "delims=" %%D in ('powershell -NoProfile -Command "$lines = Get-Content '%TMPDIR%\config.txt'; $inBlock = $false; $diskLine = $null; foreach ($l in $lines) { if ($inBlock -and $l -ne '' -and -not $diskLine -and $l -notmatch '(?i)USB|Network|Ethernet|IPV4|IPV6|PXE|WI-FI|WIFI') { $diskLine = $l }; if ($l -eq '%BOOTSETTING%') { $inBlock = $true }; if ($inBlock -and $l -eq '') { $inBlock = $false } }; $diskLine"') do set "disk_line=%%D"
 
 if not defined disk_line (
     echo ERROR: could not find a non-USB, non-network entry to move to the top
@@ -192,16 +172,13 @@ set "attempt4=0"
 :retry_number
 set /a attempt4+=1
 
-set "line="
-for /f "delims=" %%i in ('biosconfigutility64 /getvalue:"%nName%" ^| findstr "VALUE"') do set "line=%%i"
+set "value="
+for /f "delims=" %%C in ('powershell -NoProfile -Command "$raw = (biosconfigutility64 /getvalue:'%nName%') -join [char]10; if ($raw -match '(?s)<!\[CDATA\[(.*?)\]\]>') { $matches[1] }"') do set "value=%%C"
 
-if not defined line (
+if not defined value (
     echo ERROR: could not read '%nName%'
     exit /b 1
 )
-
-set "value=!line:*CDATA[=!"
-set "value=!value:]]></VALUE>=!"
 
 if "!value!"=="%nDesired%" (
     echo OK: %nName% = !value!
@@ -223,15 +200,13 @@ REM  Print the raw current value of any setting to the screen
 REM ============================================
 :ShowValue
 set "vName=%~1"
-set "line="
-for /f "delims=" %%i in ('biosconfigutility64 /getvalue:"%vName%" ^| findstr "VALUE"') do set "line=%%i"
+set "value="
+for /f "delims=" %%C in ('powershell -NoProfile -Command "$raw = (biosconfigutility64 /getvalue:'%vName%') -join [char]10; if ($raw -match '(?s)<!\[CDATA\[(.*?)\]\]>') { $matches[1] }"') do set "value=%%C"
 
-if not defined line (
+if not defined value (
     echo %vName%: could not read
     goto :eof
 )
 
-set "value=!line:*CDATA[=!"
-set "value=!value:]]></VALUE>=!"
 echo %vName%: !value!
 goto :eof

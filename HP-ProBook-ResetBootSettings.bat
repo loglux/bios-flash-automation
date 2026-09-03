@@ -25,6 +25,10 @@ REM this script or A.bat's password file has anything to do with).
 REM Empty by default - not used. If /setvalue or /SetConfig calls
 REM start failing with a password-related error, set this to the
 REM password file name; it gets appended to every write call below.
+REM
+REM "Startup Delay (sec.)" confirmed enum-style on real hardware
+REM (2026-09-03), same shape as Fast Boot - checked/fixed via
+REM :CheckAndFixSimpleSetting, not a separate numeric-setting routine.
 set "PWD_FILE="
 
 set "TMPDIR=%~dp0temp"
@@ -49,7 +53,7 @@ echo.
 
 call :CheckAndFixSimpleSetting "Fast Boot" "Enable"
 call :CheckAndFixBootOrderReset
-call :CheckAndFixNumberSetting "%STARTUP_DELAY_SETTING%" "%STARTUP_DELAY_DESIRED%"
+call :CheckAndFixSimpleSetting "%STARTUP_DELAY_SETTING%" "%STARTUP_DELAY_DESIRED%"
 
 echo.
 echo === Final state ===
@@ -176,41 +180,6 @@ for /f "usebackq delims=" %%L in ("%TMPDIR%\config.txt") do (
 move /y "%newfile%" "%TMPDIR%\config.txt" >nul
 biosconfigutility64 /SetConfig:"%TMPDIR%\config.txt" %PWDARG% >nul 2>&1
 goto :retry_bootorder_reset
-
-
-REM ============================================
-REM  Generic check/fix for a plain numeric setting
-REM ============================================
-:CheckAndFixNumberSetting
-set "nName=%~1"
-set "nDesired=%~2"
-set "attempt4=0"
-
-:retry_number
-set /a attempt4+=1
-
-set "_pname=%nName%"
-set "value="
-for /f "delims=" %%C in ('powershell -NoProfile -ExecutionPolicy Bypass -File "%PS_GETVALUE%"') do set "value=%%C"
-
-if not defined value (
-    echo ERROR: could not read '!nName!'
-    exit /b 1
-)
-
-if "!value!"=="!nDesired!" (
-    echo OK: !nName! = !value!
-    goto :eof
-)
-
-if !attempt4! gtr 3 (
-    echo FAIL: !nName! still '!value!' after 3 attempts
-    exit /b 1
-)
-
-echo FIX: !nName! is '!value!' -^> setting to '!nDesired!' ^(attempt !attempt4!^)
-biosconfigutility64 /setvalue:"%nName%","%nDesired%" %PWDARG% >nul 2>&1
-goto :retry_number
 
 
 REM ============================================

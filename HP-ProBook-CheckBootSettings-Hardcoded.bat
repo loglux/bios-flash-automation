@@ -33,6 +33,10 @@ REM   experimental/PowerShell-Variant.md), not something tested here.
 REM
 REM HP-ProBook-CheckBootSettings.bat (the non-hardcoded version) stays
 REM the one actually relied on until this is verified.
+REM
+REM "Startup Delay (sec.)" confirmed enum-style on real hardware
+REM (2026-09-03), same shape as Fast Boot - checked/fixed via
+REM :CheckAndFixSimpleSetting, not a separate numeric-setting routine.
 
 set "TMPDIR=%~dp0temp"
 if not exist "%TMPDIR%" mkdir "%TMPDIR%"
@@ -57,7 +61,7 @@ echo.
 
 call :CheckAndFixSimpleSetting "Fast Boot" "Disable"
 call :CheckAndFixBootOrderHardcoded
-call :CheckAndFixNumberSetting "%STARTUP_DELAY_SETTING%" "%STARTUP_DELAY_DESIRED%"
+call :CheckAndFixSimpleSetting "%STARTUP_DELAY_SETTING%" "%STARTUP_DELAY_DESIRED%"
 
 echo.
 echo === Final state ===
@@ -138,41 +142,6 @@ if !attempt3! gtr 3 (
 echo FIX: USB not first, writing hardcoded order ^(attempt !attempt3!^)
 biosconfigutility64 /setvalue:"%BOOTSETTING%","%USB_FIRST_ORDER%" >nul 2>&1
 goto :retry_bootorder_hc
-
-
-REM ============================================
-REM  Generic check/fix for a plain numeric setting
-REM ============================================
-:CheckAndFixNumberSetting
-set "nName=%~1"
-set "nDesired=%~2"
-set "attempt4=0"
-
-:retry_number
-set /a attempt4+=1
-
-set "_pname=%nName%"
-set "value="
-for /f "delims=" %%C in ('powershell -NoProfile -ExecutionPolicy Bypass -File "%PS_GETVALUE%"') do set "value=%%C"
-
-if not defined value (
-    echo ERROR: could not read '!nName!'
-    exit /b 1
-)
-
-if "!value!"=="!nDesired!" (
-    echo OK: !nName! = !value!
-    goto :eof
-)
-
-if !attempt4! gtr 3 (
-    echo FAIL: !nName! still '!value!' after 3 attempts
-    exit /b 1
-)
-
-echo FIX: !nName! is '!value!' -^> setting to '!nDesired!' ^(attempt !attempt4!^)
-biosconfigutility64 /setvalue:"%nName%","%nDesired%" >nul 2>&1
-goto :retry_number
 
 
 REM ============================================

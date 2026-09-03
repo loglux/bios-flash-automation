@@ -17,12 +17,12 @@ REM this time"), even when the parentheses are inside quotes; this is
 REM a documented cmd.exe limitation (the FOR /F parser itself scans
 REM the command text for parentheses), not something quoting can fix.
 REM
-REM NOTE: exact setting name for "Startup Delay" is NOT confirmed on
-REM real hardware yet. HP support threads use both "Startup Delay
-REM (sec.)" and "Startup Menu Delay (sec.)" for what looks like the
-REM same option (Advanced > Boot Options in F10 Setup) - verify with
-REM "biosconfigutility64 /getvalue:<name>" on-site; the variable below
-REM makes it a one-line fix if the name is wrong.
+REM "Startup Delay (sec.)" confirmed on real hardware (2026-09-03) -
+REM both the setting name and that it's enum-style, not a plain
+REM number: /getvalue returns the full allowed range with the current
+REM one asterisk-marked (e.g. "*0,5,10,...,60"), same shape as Fast
+REM Boot. Checked/fixed via :CheckAndFixSimpleSetting like Fast Boot,
+REM not a separate numeric-setting routine.
 
 set "TMPDIR=%~dp0temp"
 if not exist "%TMPDIR%" mkdir "%TMPDIR%"
@@ -43,7 +43,7 @@ echo.
 
 call :CheckAndFixSimpleSetting "Fast Boot" "Disable"
 call :CheckAndFixBootOrder
-call :CheckAndFixNumberSetting "%STARTUP_DELAY_SETTING%" "%STARTUP_DELAY_DESIRED%"
+call :CheckAndFixSimpleSetting "%STARTUP_DELAY_SETTING%" "%STARTUP_DELAY_DESIRED%"
 
 echo.
 echo === Final state ===
@@ -165,42 +165,6 @@ for /f "usebackq delims=" %%L in ("%TMPDIR%\config.txt") do (
 move /y "%newfile%" "%TMPDIR%\config.txt" >nul
 biosconfigutility64 /SetConfig:"%TMPDIR%\config.txt" >nul 2>&1
 goto :retry_bootorder
-
-
-REM ============================================
-REM  Generic check/fix for a plain numeric setting (no asterisk,
-REM  no comma list - just a bare value, e.g. a delay in seconds)
-REM ============================================
-:CheckAndFixNumberSetting
-set "nName=%~1"
-set "nDesired=%~2"
-set "attempt4=0"
-
-:retry_number
-set /a attempt4+=1
-
-set "_pname=%nName%"
-set "value="
-for /f "delims=" %%C in ('powershell -NoProfile -ExecutionPolicy Bypass -File "%PS_GETVALUE%"') do set "value=%%C"
-
-if not defined value (
-    echo ERROR: could not read '!nName!'
-    exit /b 1
-)
-
-if "!value!"=="!nDesired!" (
-    echo OK: !nName! = !value!
-    goto :eof
-)
-
-if !attempt4! gtr 3 (
-    echo FAIL: !nName! still '!value!' after 3 attempts
-    exit /b 1
-)
-
-echo FIX: !nName! is '!value!' -^> setting to '!nDesired!' ^(attempt !attempt4!^)
-biosconfigutility64 /setvalue:"%nName%","%nDesired%" >nul 2>&1
-goto :retry_number
 
 
 REM ============================================

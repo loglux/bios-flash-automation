@@ -9,12 +9,14 @@ REM list of shortcuts - just copies whatever is currently in the
 REM Shortcuts folder. Manage the shortcut list by adding/removing
 REM files there, not by editing this script.
 REM
-REM TARGET_DRIVE: the offline target system's drive letter, as seen
-REM from WinPE (matches this project's real environment, where the
-REM target disk shows up as D:). Adjust if different.
+REM TARGET_DRIVE: the offline target system's internal disk drive
+REM letter, as seen from WinPE - NOT the boot USB drive (which is D:
+REM in this project's real environment; X: is WinPE's own RAM disk).
+REM The internal disk is typically C: from within WinPE, but verify
+REM on-site before relying on this.
 
 set "SHORTCUTS_SRC=%~dp0Shortcuts"
-set "TARGET_DRIVE=D:"
+set "TARGET_DRIVE=C:"
 set "PUBLIC_DESKTOP=%TARGET_DRIVE%\Users\Public\Desktop"
 
 if not exist "%SHORTCUTS_SRC%" (

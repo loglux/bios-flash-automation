@@ -75,7 +75,11 @@ if exist "%BACKUP_INI%" del "%BACKUP_INI%"
 REM ============================================
 REM  STEP 2: apply boot settings
 REM ============================================
-"%CCTK%" --Fastboot=Minimal
+REM Thorough, not Minimal - Minimal is the "fastest POST" state, i.e.
+REM the analog of Fast Boot ENABLED. HP disables Fast Boot here so the
+REM USB drive is reliably detected (see HP/docs/HP-BCU-FastBoot-BootOrder.md) -
+REM Thorough (full hardware/config testing) is the matching Dell state.
+"%CCTK%" --Fastboot=Thorough
 "%CCTK%" --ExtPostTime=5s
 
 REM The USB flash drive's Shortform varies by machine/BIOS (confirmed

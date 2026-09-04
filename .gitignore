@@ -7,7 +7,7 @@ config.txt
 config_new.txt
 
 # Firmware binaries (large / licensed - don't commit blindly)
-firmware/*.bin
+**/firmware/*.bin
 
 # Screenshots shared for review - may contain hostnames/paths, not for the repo
 *.jpg

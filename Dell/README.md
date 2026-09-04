@@ -43,6 +43,13 @@ new script.
 - Implemented as a draft in `Dell-SetBootSettings.bat` (STEP 0) — logs
   manufacturer/model/Service Tag and aborts if the manufacturer isn't
   Dell. Not yet wired into a model → config lookup table.
+- **Tested on real hardware** (a Dell Precision T1700, from its own
+  WinPE boot): manufacturer detection worked correctly (`Manufacturer:
+  Dell Inc.`), but the original `findstr`-based substring check failed
+  — `findstr` isn't present on that WinPE image (a minimal build).
+  Switched to a PowerShell `-match` check instead, matching how the HP
+  scripts already handle equivalent substring checks. Everything past
+  STEP 0 (backup + the three settings) is still untested.
 
 ### 2. BIOS settings
 

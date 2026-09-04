@@ -25,7 +25,10 @@ if not defined manufacturer (
 
 echo Manufacturer: !manufacturer!
 
-echo !manufacturer! | findstr /i "dell" >nul
+REM findstr isn't present on every WinPE image (confirmed missing on
+REM one real build) - use PowerShell -match instead, same as the HP
+REM scripts already do for similar substring checks.
+powershell -NoProfile -Command "if ('!manufacturer!' -match 'Dell') { exit 0 } else { exit 1 }"
 if !errorlevel! neq 0 (
     echo ERROR: this is not a Dell system ^(Manufacturer='!manufacturer!'^) - aborting
     exit /b 1

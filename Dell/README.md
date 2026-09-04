@@ -6,10 +6,17 @@ firmware — run from the same WinPE bootable USB flash drive as the
 `HP/` pipeline.
 
 No exact model list yet. `Dell-SetBootSettings.bat` /
-`Dell-RestoreBootSettings.bat` exist as untested drafts (see below) —
-not yet run against real Dell hardware. The one fixed requirement so
-far: the approach must make adding a new model easy — a config entry,
-not new logic.
+`Dell-RestoreBootSettings.bat` / `Dell-FindUsbBootDevice.ps1` exist as
+drafts (see below) — partially confirmed on real hardware, restore
+still untested. The one fixed requirement so far: the approach must
+make adding a new model easy — a config entry, not new logic.
+
+**Note for whoever copies these onto the test USB drive**: copy the
+`.bat` files straight from this repo, not through an intermediate
+editor that might save with a UTF-8 BOM — a BOM before `@echo off`
+makes cmd.exe fail to parse that line, so `echo` never gets turned
+off and every subsequent line gets echoed back noisily. Purely
+cosmetic (the rest of the script still runs), but worth avoiding.
 
 ---
 
@@ -43,13 +50,15 @@ new script.
 - Implemented as a draft in `Dell-SetBootSettings.bat` (STEP 0) — logs
   manufacturer/model/Service Tag and aborts if the manufacturer isn't
   Dell. Not yet wired into a model → config lookup table.
-- **Tested on real hardware** (a Dell Precision T1700, from its own
-  WinPE boot): manufacturer detection worked correctly (`Manufacturer:
-  Dell Inc.`), but the original `findstr`-based substring check failed
-  — `findstr` isn't present on that WinPE image (a minimal build).
-  Switched to a PowerShell `-match` check instead, matching how the HP
-  scripts already handle equivalent substring checks. Everything past
-  STEP 0 (backup + the three settings) is still untested.
+- **Tested on real hardware** (a Dell Precision T1700, then a Dell
+  Latitude 5530, both from their own WinPE boot):
+  - Manufacturer detection worked (`Manufacturer: Dell Inc.`), but the
+    original `findstr`-based substring check failed — `findstr` isn't
+    present on that WinPE image (a minimal build). Switched to a
+    PowerShell `-match` check instead, matching how the HP scripts
+    already handle equivalent substring checks.
+  - Model and Service Tag detection both worked cleanly on the
+    Latitude 5530 (`Model: Latitude 5530`, `Service Tag: XXXXXXX`).
 
 ### 2. BIOS settings
 
@@ -66,9 +75,9 @@ corrected below):
 
 | HP setting (BiosConfigUtility64) | Dell Command \| Configure equivalent | Notes |
 |---|---|---|
-| Fast Boot (`Enable`/`Disable`) | `--Fastboot` — `Thorough`, `Minimal`, `Auto` | Not a plain toggle — controls POST thoroughness, three values not two. `Minimal` is the closest match to "fast", and is confirmed in two independent real-world deployment scripts, not just the doc (see Documentation below) — though an older (2014, CCTK-era) blog used the value `automatic` instead of today's `Auto`, so value spelling has changed across versions. |
-| Startup Delay (sec.) | `--ExtPostTime` — `0s`, `5s`, `10s`, `30s`, `60s` | Same purpose (delays the F2/F12 hotkey window during POST), fixed value set instead of an arbitrary number of seconds. Not found in use in any real-world script so far — confirmed only via Dell's own sample settings dump in the CLI Reference Guide appendix (`ExtPostTime=0s`), not via independent third-party usage. |
-| UEFI Boot Order (USB first / disk first) | `cctk BootOrder --BootListType=uefi --Sequence=... --EnableDevice=... --DisableDevice=...` | Confirmed exact syntax, both from the official guide's own examples and from two independent real-world scripts using `usbdev` as the USB short form. UEFI device short forms include `hdd`, `usbhdd`, `usbdev`, `cdrom`, `embnic`, `embnicipv4`, `embnicipv6`, etc. |
+| Fast Boot (`Enable`/`Disable`) | `--Fastboot` — `Thorough`, `Minimal`, `Auto` | Not a plain toggle — controls POST thoroughness, three values not two. `Minimal` is the closest match to "fast". **Confirmed working on real hardware** (Latitude 5530: `cctk --Fastboot=Minimal` echoed back `Fastboot=Minimal` with no warning/error), on top of the two independent real-world deployment scripts already found. |
+| Startup Delay (sec.) | `--ExtPostTime` — `0s`, `5s`, `10s`, `30s`, `60s` | Same purpose (delays the F2/F12 hotkey window during POST), fixed value set instead of an arbitrary number of seconds. **Confirmed working on real hardware** (Latitude 5530: `cctk --ExtPostTime=5s` echoed back `ExtPostTime=5s` with no warning/error) — previously only seen in Dell's own sample dump, never in independent usage. |
+| UEFI Boot Order (USB first / disk first) | `cctk BootOrder --BootListType=uefi --Sequence=<usb-shortform>,hdd.1` | Confirmed syntax, but **the USB short form is machine-specific, not a fixed constant** — on the Latitude 5530 the actual boot device showed up as `usbhdd` ("USB Hard Disk", the Kingston flash drive), and the hardcoded `usbdev` guess failed with `WARNING : Unable to set BootOrder for : usbdev`. Fixed by reading the live device table (`cctk BootOrder --BootListType=uefi`, no `--Sequence`) and picking whichever short form is `usbhdd` or `usbdev` — see `Dell-FindUsbBootDevice.ps1`. Real device list on that machine also included `embnicipv4`/`embnicipv6` (onboard NIC PXE boot entries) — likely what "an IPv6 option to disable" from memory actually refers to, since they sit right in this same Boot Order list, not as a separate BIOS setting. |
 | IPv6 | No plain "disable IPv6" option exists. Closest matches: `--IPv6PXEBoot` (`Enabled`/`Disabled`, IPv6 **PXE boot only**), `--IPvXBootOrder` (`IPv4`/`IPv6`, preference order when both PXE options are on), `--UefiNwStack` (`Enabled`/`Disabled`/`SelectiveEnable`/`AutoEnable`, master switch for the whole preboot UEFI network stack, v4+v6 together) | All three are preboot/PXE-networking knobs, not an OS-level IPv6 stack toggle. Need to pin down which one actually matches the original intent before picking one. |
 
 Source: Dell Command | Configure Version 5.x Command-line Interface

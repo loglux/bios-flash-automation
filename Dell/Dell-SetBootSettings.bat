@@ -7,6 +7,7 @@ REM and which are constructed by analogy.
 
 set "CCTK=%~dp0cctk.exe"
 set "BACKUP_INI=%~dp0dell-bios-backup.ini"
+set "PS_FINDUSB=%~dp0Dell-FindUsbBootDevice.ps1"
 
 
 REM ============================================
@@ -76,4 +77,17 @@ REM  STEP 2: apply boot settings
 REM ============================================
 "%CCTK%" --Fastboot=Minimal
 "%CCTK%" --ExtPostTime=5s
-"%CCTK%" BootOrder --BootListType=uefi --Sequence=usbdev,hdd.1
+
+REM The USB flash drive's Shortform varies by machine/BIOS (confirmed
+REM usbhdd, not usbdev, on a real Latitude 5530) - read the actual boot
+REM order table and find it rather than hardcoding one guess.
+set "usb_short="
+for /f "delims=" %%U in ('powershell -NoProfile -ExecutionPolicy Bypass -File "%PS_FINDUSB%" -CctkPath "%CCTK%"') do set "usb_short=%%U"
+
+if not defined usb_short (
+    echo ERROR: could not find a USB boot device in BootOrder
+    exit /b 1
+)
+
+echo Found USB boot device: !usb_short!
+"%CCTK%" BootOrder --BootListType=uefi --Sequence=!usb_short!,hdd.1

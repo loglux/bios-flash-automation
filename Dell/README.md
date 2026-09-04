@@ -5,9 +5,9 @@ fixes (e.g. disabling IPv6), and flashing the model-specific BIOS
 firmware — run from the same WinPE bootable USB flash drive as the
 `HP/` pipeline.
 
-**Status: design stage.** No exact model list yet, no scripts written.
-The one fixed requirement so far: the approach must make adding a new
-model easy — a config entry, not new logic.
+No exact model list yet, no scripts written. The one fixed
+requirement so far: the approach must make adding a new model easy —
+a config entry, not new logic.
 
 ---
 
@@ -40,6 +40,9 @@ new script.
   equivalent of HP's BiosConfigUtility64. No installation needed; runs
   directly from the USB flash drive under WinPE.
 - Example: `cctk.exe --Ipv6=Disabled`
+- Current version (5.2.2) officially supports WinPE (64-bit and
+  ARM64), confirming this fits the same USB/WinPE workflow as the HP
+  pipeline. See Documentation below.
 
 ### 3. Firmware flashing
 
@@ -65,6 +68,9 @@ just isn't populated yet since the exact model list isn't confirmed.
 
 ---
 
-## Status
+## Documentation
 
-Planning only. No scripts, no config table, no confirmed model list.
+- [Dell Command | Configure — overview / KB article](https://www.dell.com/support/kbdoc/en-us/000178000/dell-command-configure)
+- [Dell Command | Configure v5.x — Command-line Interface Reference Guide](https://www.dell.com/support/manuals/en-us/command-configure/dcc_5.x_ref_guide/introduction-to-dell-command-configure) ([PDF](https://dl.dell.com/content/manual22642211-dell-command-configure-version-5-x-command-line-interface-reference-guide.pdf))
+- [Dell Command | Configure v5.x — User's Guide](https://www.dell.com/support/manuals/en-us/command-configure/dcc_ug_5.x/Dell-Command--Configure-Version-5x-Users-Guide)
+- [Dell Command | Configure — download page](https://www.dell.com/support/home/en-us/drivers/DriversDetails?driverId=F2V9N)

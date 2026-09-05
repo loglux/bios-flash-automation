@@ -125,20 +125,16 @@ speculative complexity — it's required because, unlike the HP project,
 there is more than one real model to support from day one; the table
 just isn't populated yet since the exact model list isn't confirmed.
 
-### 5. Vendor dispatcher (future — not built yet)
+### 5. Vendor dispatcher
 
-Idea to keep, not implemented: a single top-level entry point on the
-USB flash drive that runs first, checks `Manufacturer` (see Vendor +
-model detection above), and launches the matching pipeline —
-`HP/HP-ProBook-BiosCheck-v6.bat` for HP, the Dell entry script for
-Dell. Both pipelines already exist side by side (`HP/`, `Dell/`), so
-this would just be the missing "which one do I run" step at the very
-top, instead of someone picking manually per machine.
-
-Deliberately parked for now — `Dell-SetBootSettings.bat`'s own
-vendor check (STEP 0) is enough while the Dell side is still
-untested; build the real dispatcher once the Dell pipeline itself is
-proven on hardware.
+Now built as a draft — see `VendorDispatch/`. A single top-level entry
+point that checks `Manufacturer` (see Vendor + model detection above)
+and launches the matching pipeline — `HP/HP-ProBook-BiosCheck-v6.bat`
+for HP, `Dell-SetBootSettings.bat` for Dell. Not yet run on real
+hardware, and the Dell branch currently only reaches this file's
+detection/settings/backup logic, not a full flash-and-image pipeline
+(there's no Dell equivalent yet of HP's version-check/flash/handoff
+steps) — see `VendorDispatch/README.md` for that asymmetry.
 
 ---
 

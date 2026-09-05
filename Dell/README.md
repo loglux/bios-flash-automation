@@ -58,7 +58,9 @@ new script.
     PowerShell `-match` check instead, matching how the HP scripts
     already handle equivalent substring checks.
   - Model and Service Tag detection both worked cleanly on the
-    Latitude 5530 (`Model: Latitude 5530`, `Service Tag: XXXXXXX`).
+    Latitude 5530 (`Model: Latitude 5530`, `Service Tag: XXXXXXX` —
+    redacted here; the actual test machine's real tag was originally
+    committed by mistake, see privacy note in `SystemIdentity/README.md`).
 
 ### 2. BIOS settings
 

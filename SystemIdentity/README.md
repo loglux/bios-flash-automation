@@ -67,8 +67,11 @@ each `wmic.exe` call as free:
 
 ## Example output
 
-The two consolidated `wmic` calls, `/format:list` output (real field
-values from a Dell Latitude 5530 tested earlier in this project):
+The two consolidated `wmic` calls, `/format:list` output (real
+Manufacturer/Model/BiosVersion from a Dell Latitude 5530 tested
+earlier in this project; `SerialNumber` replaced with a placeholder —
+a Service Tag identifies one specific physical machine, and the real
+value was committed here by mistake, see note below):
 
 ```
 C:\> wmic computersystem get manufacturer,model /format:list
@@ -104,6 +107,16 @@ Model: Latitude 5530
 Serial Number: XXXXXXX
 BIOS Version: 1.14.0
 ```
+
+## Privacy note
+
+`SerialNumber` above is a placeholder, not a real value. The actual
+Dell Service Tag of the test machine (`Latitude 5530`) was committed
+here by mistake, then again earlier in `Dell/README.md` — both fixed
+in the working tree, but the real value is still recoverable from
+older commits in this repo's history until that history is rewritten
+and force-pushed (a separate, deliberate step, not done automatically
+as part of this fix).
 
 ## Not yet done
 

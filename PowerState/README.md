@@ -26,14 +26,57 @@ error text quoted in vendor community threads, not assumed:
   Community](https://www.dell.com/community/Laptops-General-Read-Only/the-battery-must-be-charged-above-10-before-the-system-bios-can/td-p/4514501),
   corroborated on
   [MajorGeeks](https://forums.majorgeeks.com/threads/battery-must-be-charged-above-10-to-flash-bios.230260/)).
-- **HP** shows the same pattern: AC required plus a minimum charge,
-  commonly cited as 50%, though some HP systems/BIOS versions accept
-  25% even on AC ([HP Support
+- **HP** shows the same pattern: AC plus a minimum charge, and for our
+  actual fleet tool the exact threshold is now confirmed directly, not
+  just from web reports — extracting UTF-16 strings (`strings -e l`)
+  from the real `HpFirmwareUpdRec64.exe` binary (the exe `A.bat`
+  actually runs) turned up the literal embedded message: *"Connecting
+  to AC power is required while updating firmware. Connect the AC
+  adapter or try the flash again when battery is at least 50%
+  charged."* — plus separate status strings `"System is on battery
+  power."` and `"System is on battery power, less than 50%."`. This
+  also reads as looser than a strict AND: the "connect AC **or** try
+  again once charged ≥50%" phrasing, and the two distinct status
+  strings (plain "on battery" vs. "on battery, less than 50%"),
+  suggest HP's tool may accept a battery-only flash once charge is
+  high enough, with AC being the recommended-but-not-strictly-required
+  path rather than an unconditional gate like Dell's. That's a reading
+  of the string wording, not an observed conditional branch — not
+  100% certain without an actual no-AC/high-charge test. (Background,
+  before this was confirmed directly: [HP Support
   Community](https://h30434.www3.hp.com/t5/Notebook-Hardware-and-Upgrade-Questions/Battery-won-t-charge-Can-t-update-bios-without-50-charge/td-p/9609175),
-  [background](https://www.edtittel.com/blog/minimum-battery-charge-required-blocks-bios-upgrade.html)).
-  Exact threshold for our ProBook 4 G1ah14 fleet isn't confirmed —
-  25%/50% is the general range found in HP's own community content,
-  not something tested on our hardware.
+  [Ed Tittel](https://www.edtittel.com/blog/minimum-battery-charge-required-blocks-bios-upgrade.html).)
+- **[Official HP whitepaper](https://h10032.www1.hp.com/ctg/Manual/c06696094.pdf)**
+  ("HP Commercial Systems Automatic BIOS Update Through Windows Update
+  Whitepaper" — about the WU/capsule delivery path, a different
+  mechanism than `HpFirmwareUpdRec64.exe`, but the same underlying UEFI
+  Capsule apply step) has an FAQ entry quoted here verbatim, not
+  paraphrased:
+
+  > **What happens if my system is not plugged into AC when WU starts
+  > updating the BIOS?**
+  > Before the update starts, if AC-power is not plugged in **and** the
+  > remaining battery is below 50%, a message (prompting to charge the
+  > battery or connect to AC-power) will be displayed for up to 30
+  > seconds. If an AC source is still not plugged in, the update will
+  > fail.
+
+  The document only poses the question for the no-AC case — it has no
+  separate, explicitly-stated answer for "what if AC **is** plugged
+  in." The AND condition it does state (fails only when *both*
+  no-AC *and* charge <50%) logically implies charge doesn't matter
+  once AC is connected, but that's a deduction from this one stated
+  condition, not an independently confirmed sentence for the
+  AC-connected case. Consistent with the `HpFirmwareUpdRec64.exe`
+  string reading above, but still not a direct confirmation — only a
+  real test (AC connected, battery critically low/absent) would settle
+  it.
+- Searched `cctk.exe` and `BiosConfigUtility64.exe` the same way (for
+  "must be charged" / "must be plugged" / "flash") — neither contains
+  Dell's "battery must be charged above 10%" message or anything like
+  it. Consistent with both being settings tools only: that message
+  must live in whatever executable actually performs a Dell flash,
+  which hasn't been located yet.
 - **Stated reason, both vendors**: the battery is a short-term backup
   in case the AC connection gets bumped or loosened mid-flash — losing
   power during the flash can brick the board.
@@ -84,6 +127,10 @@ the full picture:
     attempts (default 12, i.e. ~1 hour) rather than looping forever.
   - AC not connected at all → stops immediately with a clear "plug in
     the AC adapter" message — no point waiting, charge only goes down.
+    Open question given the HP string finding above: HP's own tool may
+    permit a battery-only flash above 50%, which this script currently
+    doesn't allow — a deliberately stricter policy for unattended fleet
+    use, or worth loosening? Not decided yet.
   - No battery (desktop) → skips the check entirely, reports OK.
   - Threshold/max attempts/delay are caller-supplied arguments, not
     hardcoded, since HP and Dell need different thresholds and neither
@@ -102,5 +149,6 @@ the equivalent step once it exists on Dell).
 - [Battery must be charged above 10% to flash BIOS (MajorGeeks forums, corroborating)](https://forums.majorgeeks.com/threads/battery-must-be-charged-above-10-to-flash-bios.230260/)
 - ["The AC adapter and battery must be plugged in before the system bios can be flashed" (Dell Community)](https://www.dell.com/community/Laptops-General-Read-Only/quot-The-AC-adapter-and-battery-must-be-plugged-in-before-the/td-p/4080604)
 - [How to Force Update Your Laptop BIOS Without AC Power (Dell)](https://www.dell.com/support/kbdoc/en-us/000134938/forcing-a-bios-update-without-the-ac-adapter-attached-on-a-dell-laptop)
+- [HP Commercial Systems Automatic BIOS Update Through Windows Update Whitepaper (official HP PDF)](https://h10032.www1.hp.com/ctg/Manual/c06696094.pdf)
 - [Win32_Battery (powershell.one)](https://powershell.one/wmi/root/cimv2/win32_battery)
 - [BATTERY_WMI_STATUS (Microsoft Learn)](https://learn.microsoft.com/en-us/windows/win32/api/batclass/ns-batclass-battery_wmi_status)

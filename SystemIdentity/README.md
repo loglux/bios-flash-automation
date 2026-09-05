@@ -65,6 +65,46 @@ each `wmic.exe` call as free:
   `PowerState-Check.bat` wraps its own: one `for /f` loop, sets each
   key as a batch variable.
 
+## Example output
+
+The two consolidated `wmic` calls, `/format:list` output (real field
+values from a Dell Latitude 5530 tested earlier in this project):
+
+```
+C:\> wmic computersystem get manufacturer,model /format:list
+
+Manufacturer=Dell Inc.
+Model=Latitude 5530
+
+
+C:\> wmic bios get serialnumber,smbiosbiosversion /format:list
+
+SerialNumber=XXXXXXX
+SMBIOSBIOSVersion=1.14.0
+
+```
+
+`SystemIdentity-Check.ps1` run directly (one process, both classes):
+
+```
+C:\> powershell -NoProfile -ExecutionPolicy Bypass -File SystemIdentity-Check.ps1
+Manufacturer|Dell Inc.
+Model|Latitude 5530
+SerialNumber|XXXXXXX
+BiosVersion|1.14.0
+```
+
+`SystemIdentity-Check.bat` run — same data, parsed into readable
+labels by the `for /f "tokens=1,* delims=|"` loop:
+
+```
+C:\> SystemIdentity-Check.bat
+Manufacturer: Dell Inc.
+Model: Latitude 5530
+Serial Number: XXXXXXX
+BIOS Version: 1.14.0
+```
+
 ## Not yet done
 
 - Not run on real hardware.

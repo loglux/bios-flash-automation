@@ -121,11 +121,14 @@ as part of this fix).
 ## Not yet done
 
 - Not run on real hardware.
-- Not wired into `VendorDispatch/VendorDispatch.bat` or
-  `Dell/Dell-SetBootSettings.bat` yet — both still have their own
-  inline, single-field detection; this is a candidate replacement, not
-  a completed migration.
-- HP's `BiosCheck-v6.bat` still reads `SMBIOSBIOSVersion` itself, the
-  same way it always has — unclear yet whether it's worth switching
-  that mature, already-tested pipeline over to this instead of leaving
-  it alone.
+- **Now wired into `HP/HP-ProBook-BiosCheck-v6.bat`** (STEP 1): its
+  BIOS-version read was switched from a standalone
+  `wmic bios get smbiosbiosversion` call to this shared module, which
+  also now logs Manufacturer/Model and defensively re-checks
+  Manufacturer == HP. This means v6's otherwise mature,
+  hardware-tested pipeline now has one untested dependency in its
+  very first step — worth a real hardware pass specifically on this
+  before trusting v6 in the field again.
+- Still not wired into `VendorDispatch/VendorDispatch.bat` or
+  `Dell/Dell-SetBootSettings.bat` — both still have their own inline,
+  single-field detection.

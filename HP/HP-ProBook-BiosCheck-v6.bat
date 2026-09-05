@@ -37,16 +37,41 @@ set "PS_FINDLINE=%~dp0HP-ProBook-FindConfigLine.ps1"
 REM ============================================
 REM  STEP 1: BIOS version -> A.bat if needed. Boot settings are
 REM  checked/enabled right before the call, not unconditionally.
+REM
+REM  Manufacturer/Model read here too, via the shared SystemIdentity/
+REM  module - not used for branching yet (only one real HP model in
+REM  the fleet so far), just logged and defensively checked, as
+REM  groundwork for a future vendor+model dispatch shared across HP
+REM  and Dell. See SystemIdentity/README.md.
 REM ============================================
-set "biosver="
-for /f "skip=1 tokens=* delims=" %%V in ('wmic bios get smbiosbiosversion 2^>nul') do (
-    if not defined biosver if not "%%V"=="" set "biosver=%%V"
+set "PS_SYSID=%~dp0..\SystemIdentity\SystemIdentity-Check.ps1"
+
+set "Manufacturer="
+set "Model="
+set "SerialNumber="
+set "BiosVersion="
+for /f "tokens=1,* delims=|" %%A in ('powershell -NoProfile -ExecutionPolicy Bypass -File "%PS_SYSID%"') do (
+    set "%%A=%%B"
 )
-for /f "tokens=* delims= " %%A in ("!biosver!") do set "biosver=%%A"
+set "biosver=%BiosVersion%"
 
 if not defined biosver (
     echo ERROR: could not read BIOS version
     exit /b 1
+)
+
+echo Manufacturer: %Manufacturer%   Model: %Model%   BIOS Version: !biosver!
+
+REM Defense in depth - VendorDispatch.bat already checks this before
+REM calling this script, but this script can also be run directly.
+REM PowerShell -match, not findstr - findstr is confirmed missing on
+REM at least one real WinPE build (see Dell/README.md).
+if defined Manufacturer (
+    powershell -NoProfile -Command "if ('%Manufacturer%' -match 'HP|Hewlett-Packard') { exit 0 } else { exit 1 }"
+    if !errorlevel! neq 0 (
+        echo ERROR: this script is HP-only, detected manufacturer: %Manufacturer%
+        exit /b 1
+    )
 )
 
 REM Substring match, not exact equality - some platforms report the

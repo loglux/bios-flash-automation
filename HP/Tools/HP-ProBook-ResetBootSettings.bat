@@ -8,6 +8,9 @@ REM
 REM PWD_FILE: current-password file for biosconfigutility64. Defaults
 REM to "hpbiospw.bin" - the real password B.bat sets via /npwdfile.
 REM Clear it if targeting a machine that never ran B.bat.
+REM
+REM Depends on three .ps1 helpers one level up, in HP/ (not next to
+REM this script) - see the %~dp0..\ paths below.
 set "PWD_FILE=hpbiospw.bin"
 
 set "TMPDIR=%~dp0temp"
@@ -20,9 +23,9 @@ set "STARTUP_DELAY_DESIRED=0"
 set "PWDARG="
 if defined PWD_FILE set PWDARG=/cpwdfile:"%PWD_FILE%"
 
-set "PS_GETVALUE=%~dp0HP-ProBook-GetBiosValue.ps1"
-set "PS_BOOTFIRST=%~dp0HP-ProBook-CheckBootOrderFirst.ps1"
-set "PS_FINDLINE=%~dp0HP-ProBook-FindConfigLine.ps1"
+set "PS_GETVALUE=%~dp0..\HP-ProBook-GetBiosValue.ps1"
+set "PS_BOOTFIRST=%~dp0..\HP-ProBook-CheckBootOrderFirst.ps1"
+set "PS_FINDLINE=%~dp0..\HP-ProBook-FindConfigLine.ps1"
 
 echo === Starting state ===
 call :ShowValue "Fast Boot"

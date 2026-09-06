@@ -7,6 +7,9 @@ REM value of all three to the screen at the end.
 REM
 REM Startup Delay is enum-style like Fast Boot, not a plain number -
 REM checked/fixed via :CheckAndFixSimpleSetting.
+REM
+REM Depends on three .ps1 helpers one level up, in HP/ (not next to
+REM this script) - see the %~dp0..\ paths below.
 
 set "TMPDIR=%~dp0temp"
 if not exist "%TMPDIR%" mkdir "%TMPDIR%"
@@ -15,9 +18,9 @@ set "BOOTSETTING=UEFI Boot Order"
 set "STARTUP_DELAY_SETTING=Startup Delay (sec.)"
 set "STARTUP_DELAY_DESIRED=5"
 
-set "PS_GETVALUE=%~dp0HP-ProBook-GetBiosValue.ps1"
-set "PS_BOOTFIRST=%~dp0HP-ProBook-CheckBootOrderFirst.ps1"
-set "PS_FINDLINE=%~dp0HP-ProBook-FindConfigLine.ps1"
+set "PS_GETVALUE=%~dp0..\HP-ProBook-GetBiosValue.ps1"
+set "PS_BOOTFIRST=%~dp0..\HP-ProBook-CheckBootOrderFirst.ps1"
+set "PS_FINDLINE=%~dp0..\HP-ProBook-FindConfigLine.ps1"
 
 echo === Starting state ===
 call :ShowValue "Fast Boot"

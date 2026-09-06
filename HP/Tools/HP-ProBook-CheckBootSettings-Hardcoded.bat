@@ -24,6 +24,9 @@ REM the one actually relied on until this is verified.
 REM
 REM Startup Delay is enum-style like Fast Boot, not a plain number -
 REM checked/fixed via :CheckAndFixSimpleSetting.
+REM
+REM Depends on two .ps1 helpers one level up, in HP/ (not next to
+REM this script) - see the %~dp0..\ paths below.
 
 set "TMPDIR=%~dp0temp"
 if not exist "%TMPDIR%" mkdir "%TMPDIR%"
@@ -37,8 +40,8 @@ REM real target hardware, 2026-09-02 - USB already first at capture
 REM time, kept in that order here.
 set "USB_FIRST_ORDER=HDD:USB:1,HDD:M.2:1,NETWORK IPV4:EMBEDDED:1,NETWORK IPV6:EMBEDDED:1,WI-FI NETWORK IPV4:EMBEDDED:1,WI-FI NETWORK IPV6:EMBEDDED:1"
 
-set "PS_GETVALUE=%~dp0HP-ProBook-GetBiosValue.ps1"
-set "PS_BOOTFIRST=%~dp0HP-ProBook-CheckBootOrderFirst.ps1"
+set "PS_GETVALUE=%~dp0..\HP-ProBook-GetBiosValue.ps1"
+set "PS_BOOTFIRST=%~dp0..\HP-ProBook-CheckBootOrderFirst.ps1"
 
 echo === Starting state ===
 call :ShowValue "Fast Boot"

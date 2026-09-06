@@ -12,54 +12,66 @@ a script that checks, fixes, and logs these steps itself.
 
 ## What the script does
 
-The pipeline glues together three scripts:
-- **A** — flashes the BIOS to the target version (implemented directly in this script)
-- **B** — configures several Security Settings options, including "Enable MS UEFI CA key"
-  (an existing script, called by this one — its internals are out of scope here)
-- **C** — the final imaging dialog + Ghost (an existing script, launched at the end)
+`HP-ProBook-BiosCheck-v6.bat` orchestrates three external scripts —
+**A** (flash), **B** (security settings), **C** (imaging dialog +
+Ghost) — without implementing any of their internals itself. `A.bat`/
+`B.bat`/`C.bat` are expected to already be present alongside it (they
+come from the real deployment environment, not this repo).
 
-Plus Fast Boot and Boot Order (USB first), which are not part of script B — they were
-added directly to this script so the pipeline doesn't need someone to manually catch
-every reboot and re-enter the BIOS boot menu.
+1. **STEP 1** — reads Manufacturer/Model/BiosVersion via
+   `SystemIdentity-Check.ps1`, defensively errors out if the
+   manufacturer isn't HP. Compares BIOS version against
+   `TARGET_VERSION` (substring match, since some platforms report a
+   product-code prefix). If it doesn't match: checks/fixes Fast Boot
+   and Boot Order (USB first), then calls `A.bat` and exits with its
+   code — relies on the next WinPE boot to re-run this script and
+   re-check, there's no in-script retry loop or attempt counter.
+2. **STEP 2** — once the version matches, gates on "Enable MS UEFI CA
+   key" as an indicator of whether `B.bat` has run (never sets the
+   value directly itself): if not `Yes`, checks/fixes Fast Boot/Boot
+   Order again, calls `B.bat`, re-checks (up to 3 attempts).
+3. **STEP 3** — once both are confirmed, resets Fast Boot/Boot
+   Order/Startup Delay back to factory defaults before handing off.
+4. **STEP 4** — calls `C.bat`.
 
-1. Checks and fixes Fast Boot and Boot Order (USB first) before flashing
-2. Checks the current BIOS version against the target
-3. If it doesn't match — flashes, with retry logic (up to 3 attempts) across reboots,
-   with the attempt counter tied to the machine's serial number
-4. Once the version is confirmed — final check of Fast Boot / Boot Order, then a gate on
-   "Enable MS UEFI CA key": if not `Yes`, launches script B (Security Settings) and
-   re-checks — never sets the value itself
-5. Once the gate passes — launches script C (imaging dialog + Ghost), without touching
-   its internal logic
-6. Logs every step to `stage.log`
+Everything is logged with plain `echo` to the console only — nothing
+persists to a file, so this output is lost once the console closes.
 
-For a detailed logic walkthrough, see
-`docs/HP-ProBook-BIOS-Flash-Full-Script.md`.
+The four `.ps1` helpers next to it (`HP-ProBook-GetBiosValue.ps1`,
+`HP-ProBook-CheckBootOrderFirst.ps1`, `HP-ProBook-FindConfigLine.ps1`,
+`SystemIdentity-Check.ps1`) are its real, confirmed dependencies —
+`GetBiosValue` reads simple enum-style settings (Fast Boot, Startup
+Delay, the CA key), `CheckBootOrderFirst`/`FindConfigLine` exist
+specifically because Boot Order is a *list* setting that can't be
+fixed with a single `/setvalue` the way the others can.
+
+---
+
+## Other folders here
+
+- **`Legacy/`** — `v1.bat` through `v5.bat`, superseded by `v6.bat`,
+  kept untouched as historical reference (this project's own
+  versioning convention).
+- **`Tools/`** — standalone diagnostic/utility scripts `v6.bat`
+  doesn't call: boot-settings checkers, a reset script, the
+  not-yet-wired-in BootNext experiments.
+- **`DesktopShortcuts/`** — a separate feature, own README.
+- **`docs/`, `experimental/`** — deeper notes on specific mechanisms
+  (Fast Boot/Boot Order handling, the CA key gate).
 
 ---
 
 ## Notes
 
-- Real names/paths for scripts B (Security Settings) and C (dialog + Ghost) —
-  currently placeholders `B.bat` / `C.bat` next to the script. Candidates spotted
-  in a real file listing from this environment: `SetBiosProBook4G1ah14.bat`,
-  `Post_Ghost.bat`, `STARTXUEFI85.bat` — not yet confirmed which map to B/C.
-- Whether these machines have HP Sure Start is not yet confirmed — if so, the BIOS
-  update may trigger more than one reboot before the version actually changes (the
-  attempt-counter loop already tolerates this, just worth knowing in advance).
-- What BIOS password script B sets, and the other ~3 Security Settings it configures
-  alongside "Enable MS UEFI CA key", are not yet identified.
-- No self-recovery if Boot Order resets during the flash-triggered reboot on a
-  machine that already has a working OS on disk — it boots into Windows instead
-  of back into WinPE, and the script (living only on the USB drive) can't restart
-  itself. The Step 1 check before the flash is the only protection in place.
-  Machines with a blank disk are expected to be unaffected. Observed on hardware
-  during on-site testing.
-- Re-launching the script after a flash-triggered reboot needs to be hooked into
-  whatever already launches on boot for this imaging environment (WinPE always runs
-  `Startnet.cmd` on every boot — the existing `T1700Setup` process starts itself this
-  way already). Not yet implemented: check for the `flash_attempt_<serial>.state`
-  file, launch this script if present.
+- What BIOS password `B.bat` sets, and the other Security Settings it
+  configures alongside "Enable MS UEFI CA key", are not identified
+  here (out of scope for this repo).
+- No self-recovery if Boot Order resets during the flash-triggered
+  reboot on a machine that already has a working OS on disk — it
+  boots into Windows instead of back into WinPE, and the script
+  (living only on the USB drive) can't restart itself. STEP 1's check
+  before the flash is the only protection in place. Observed on
+  hardware during on-site testing.
 
 ---
 

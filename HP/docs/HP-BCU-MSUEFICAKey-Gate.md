@@ -19,7 +19,12 @@ This way the subroutine doesn't duplicate the second batch's logic (it doesn't n
 
 ## Stage logging
 
-The `:SetStage` function writes a timestamped label for the current step to `stage.log`. **Important:** this file is not a separate log just for the MS UEFI CA key check — it's the shared log for the **entire** combined script. This subroutine is only one block of it (alongside the BIOS flash, Fast Boot, Boot Order), and simply appends its own entries via `call :SetStage`. The `:SetStage` function itself should be defined once in the final script and used from every block — that way `stage.log` ends up as a single continuous sequence of events for the whole process on a given machine, rather than a set of separate logs per step.
+The example below shows a `:SetStage`/`stage.log` pattern from an
+earlier draft. The current real pipeline (`HP-ProBook-BiosCheck-v6.bat`)
+doesn't persist logs to a file at all — every step is a plain `echo`
+to the console only, lost once the console closes. Treat the logging
+calls in the code example below as illustrative, not something that
+actually exists in the current script.
 
 ---
 
@@ -139,7 +144,10 @@ Simply writes a timestamped line to the log file and echoes it to the console as
 
 ## Important caveats
 
-- The path to the second batch (`%SECOND_BATCH%`) needs to point to the real file — right now it's a placeholder, `SetBiosOptions.bat` in the same folder as the current script.
+- The path to the second batch (`%SECOND_BATCH%`/`%SECURITY_SCRIPT%`)
+  needs to point to the real file — in `v6.bat` this is `B.bat`, still
+  a placeholder expected to exist alongside it on the real deployment.
 - The subroutine **doesn't know and doesn't need to know** exactly how the second batch applies the setting (via `/setvalue`, `/SetConfig`, or something else) — it only checks the result before and after running it.
 - If the MS UEFI CA key setting needs an additional reboot after being applied before the change is actually confirmed, that should be accounted for as a separate step in the overall pipeline (a reboot checkpoint) before the final verification of all settings together.
-- `%STAGELOG%` and the `:SetStage` function are shown here as part of the example — in the final combined script they should be defined once and used by every block, not just this one.
+- `%STAGELOG%`/`:SetStage` in the code example are illustrative only -
+  see "Stage logging" above.

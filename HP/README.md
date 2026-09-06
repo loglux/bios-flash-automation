@@ -63,83 +63,11 @@ For a detailed logic walkthrough, see
 
 ---
 
-## Idea: desktop shortcuts for remote configuration
+## Desktop shortcuts for remote configuration
 
-Not part of the BIOS pipeline above — a separate proposal for the imaging process around it.
-
-Some machines need tool shortcuts (compliance, restart, Altiris, etc.) on the desktop so an engineer can finish configuring them over a remote connection after imaging. Placing them can be automated the same way as the rest of this project: `HP-ProBook-PlaceShortcuts.bat` copies every `.lnk` file from a `Shortcuts/` folder next to it onto the target system's Public Desktop (`Users\Public\Desktop`) while still in WinPE — visible to whichever account is used to connect remotely, without depending on a specific username or on a new profile being created first. Managing the shortcut list is just adding or removing files in that folder, not editing the script.
-
-Cleanup (removing those shortcuts once remote configuration is done) is deliberately **not** automated the same way — an automatic trigger at first login would delete them before they're ever used. It only makes sense as a step the engineer takes once configuration is actually finished, ideally centrally across whichever machines are done rather than one at a time (e.g. via Altiris/Notification Server pushing the existing cleanup script, or `Invoke-Command`/PsExec against a list of hosts) rather than manually double-clicking a desktop icon on each machine.
-
-```bat
-@echo off
-setlocal enabledelayedexpansion
-
-REM Copies every .lnk file from the Shortcuts folder (next to this
-REM script) onto the target system's Public Desktop, so they're
-REM visible to whichever account is used to connect remotely and
-REM finish configuring the machine. Doesn't need to know the exact
-REM list of shortcuts - just copies whatever is currently in the
-REM Shortcuts folder. Manage the shortcut list by adding/removing
-REM files there, not by editing this script.
-REM
-REM TARGET_DRIVE: the offline target system's internal disk drive
-REM letter, as seen from WinPE - NOT the boot USB drive (which is D:
-REM in this project's real environment; X: is WinPE's own RAM disk).
-REM The internal disk is typically C: from within WinPE, but verify
-REM on-site before relying on this.
-
-set "SHORTCUTS_SRC=%~dp0Shortcuts"
-set "TARGET_DRIVE=C:"
-set "PUBLIC_DESKTOP=%TARGET_DRIVE%\Users\Public\Desktop"
-
-if not exist "%SHORTCUTS_SRC%" (
-    echo ERROR: shortcuts source folder not found at %SHORTCUTS_SRC%
-    exit /b 1
-)
-
-if not exist "%PUBLIC_DESKTOP%" (
-    echo ERROR: target Public Desktop not found at %PUBLIC_DESKTOP%
-    exit /b 1
-)
-
-set "found=0"
-for %%F in ("%SHORTCUTS_SRC%\*.lnk") do set "found=1"
-
-if "!found!"=="0" (
-    echo No .lnk files found in %SHORTCUTS_SRC% - nothing to copy.
-    exit /b 0
-)
-
-copy "%SHORTCUTS_SRC%\*.lnk" "%PUBLIC_DESKTOP%\" /y
-
-if !errorlevel! neq 0 (
-    echo ERROR: copy failed, exit code !errorlevel!
-    exit /b 1
-)
-
-echo OK: shortcuts copied to %PUBLIC_DESKTOP%
-exit /b 0
-```
-
-The cleanup counterpart, `HP-ProBook-RemoveShortcuts.bat`, runs later on the live target system (not from WinPE), triggered centrally once configuration is actually done:
-
-```bat
-@echo off
-setlocal enabledelayedexpansion
-
-REM Removes every .lnk shortcut from the target system's Public
-REM Desktop. Runs on the LIVE target system (not from WinPE) - after
-REM remote configuration is finished, meant to be triggered centrally
-REM (e.g. pushed via Altiris/Notification Server, or Invoke-Command/
-REM PsExec against a list of hosts) rather than double-clicked one
-REM machine at a time.
-
-del "%PUBLIC%\Desktop\*.lnk" /q
-
-echo OK: shortcuts removed from %PUBLIC%\Desktop
-exit /b 0
-```
+Not part of the BIOS pipeline above — a separate proposal for the
+imaging process around it, now in its own `DesktopShortcuts/`
+subfolder with its own README.
 
 ---
 

@@ -7,9 +7,7 @@ REM actually works on this hardware, with a plain reboot, no flashing
 REM involved.
 REM Finds the boot USB's firmware entry (by excluding entries that look
 REM like a network controller) and sets a one-time BootNext override on
-REM it via bcdedit. Same logic as :SetBootNextUSB in
-REM HP-ProBook-Flash-And-Configure.WithBootNext.bat, pulled out here so it
-REM can be run and checked on its own.
+REM it via bcdedit, so it can be run and checked on its own.
 REM
 REM How to use: run this, then do an ordinary reboot (e.g. "shutdown /r"
 REM or a normal restart) - no BIOS flash needed. If bootsequence works,

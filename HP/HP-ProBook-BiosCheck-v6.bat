@@ -44,7 +44,7 @@ REM  the fleet so far), just logged and defensively checked, as
 REM  groundwork for a future vendor+model dispatch shared across HP
 REM  and Dell. See SystemIdentity/README.md.
 REM ============================================
-set "PS_SYSID=%~dp0..\SystemIdentity\SystemIdentity-Check.ps1"
+set "PS_SYSID=%~dp0SystemIdentity-Check.ps1"
 
 set "Manufacturer="
 set "Model="

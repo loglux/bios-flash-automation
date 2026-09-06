@@ -67,6 +67,12 @@ each `wmic.exe` call as free:
   `PowerState-Check.bat` wraps its own: one `for /f` loop, sets each
   key as a batch variable.
 
+**Note on duplication**: `HP/HP-ProBook-BiosCheck-v6.bat` uses its own
+copy of `SystemIdentity-Check.ps1`, kept directly in `HP/` rather than
+referencing this folder across a `..\` path — a deliberate choice for
+convenience/self-containment over a single shared copy. If this script
+changes, remember to update both copies.
+
 ## Example output
 
 Confirmed on real hardware (a Dell Latitude 5530, WinPE, 2026-09-06):
@@ -139,11 +145,14 @@ as part of this fix).
   BIOS-version read was switched from a standalone
   `wmic bios get smbiosbiosversion` call to this shared module, which
   also now logs Manufacturer/Model and defensively re-checks
-  Manufacturer == HP. The script itself is confirmed working
-  standalone (see Example output above), but that specific wiring
-  inside v6 hasn't been re-run as a whole on real hardware since it
-  was added — worth a pass on that before trusting v6 in the field
-  again.
+  Manufacturer == HP. Confirmed working end-to-end inside v6 itself
+  on real hardware: run on a Dell laptop, v6 correctly read
+  Manufacturer via this wiring and halted with "this script is
+  HP-only, detected manufacturer: Dell Inc." instead of proceeding —
+  the defense-in-depth guard fired exactly as intended. Still worth
+  separately confirming the normal (non-error) path on a real HP
+  machine, but the wiring itself is proven, not just the standalone
+  script.
 - Still not wired into `VendorDispatch/VendorDispatch.bat` or
   `Dell/Dell-SetBootSettings.bat` — both still have their own inline,
   single-field detection.

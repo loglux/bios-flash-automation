@@ -39,3 +39,33 @@ to cover multiple vendors and models.
 
 Each folder's own README has the full detail, sourcing, and open gaps
 for that piece.
+
+---
+
+## Concept: universal model/procedure selection (not built yet)
+
+A future direction, not yet implemented - a brainstorm worth writing
+down. The idea splits model handling into three separate concerns,
+instead of blending them the way `v6.bat` currently does (it has its
+own HP-only check baked directly into the procedure itself):
+
+1. **A models list** - a CSV catalog of every known machine: Product
+   ID, Model name, Vendor. Doesn't exist yet as its own file; model
+   names currently only appear scattered across comments and docs.
+2. **A selection step** - looks up the detected machine in that CSV
+   and decides: launch the matching procedure, or exit with a clear
+   "unsupported machine" error. Never falls back to a default/generic
+   procedure on no match. `VendorDispatch/` is an early, partial version
+   of this today, but only at the vendor level (HP vs Dell), not
+   per-model.
+3. **The procedures themselves** - `v6.bat`, `Dell-SetBootSettings.bat`,
+   etc. - stay focused on doing the work, not on deciding whether they
+   should run at all.
+
+The detection step (1+2) runs fresh on **every single launch** - this
+is deliberate, not a missed optimization. WinPE has no memory across
+reboots (RAM-loaded OS), and the same USB drive serves many different
+physical machines across the fleet - caching a previous result would
+go stale the moment the drive moves to another machine. The cost of
+re-checking (a WMI/CIM query) is negligible next to the minutes-long
+flash/imaging steps that follow it.

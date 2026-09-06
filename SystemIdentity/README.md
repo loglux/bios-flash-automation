@@ -2,9 +2,9 @@
 
 Vendor-agnostic logic shared between `VendorDispatch/`, `HP/`, and
 `Dell/`: reads the brand/model-agnostic facts every pipeline needs
-before it can pick a procedure — manufacturer, model, serial/service
-tag, and current BIOS version — in one place, instead of each caller
-re-implementing its own WMI/CIM calls.
+before it can pick a procedure — manufacturer, model, baseboard
+product code, serial/service tag, and current BIOS version — in one
+place, instead of each caller re-implementing its own WMI/CIM calls.
 
 Status: the `Get-CimInstance` mechanism is confirmed working on real
 hardware (a Dell Latitude 5530, 2026-09-06 - see Example output
@@ -59,10 +59,10 @@ each `wmic.exe` call as free:
 
 ## The scripts
 
-- **`SystemIdentity-Check.ps1`** — reads both classes, prints a
-  `Key|Value` report (`Manufacturer`, `Model`, `SerialNumber`,
-  `BiosVersion`) — same `tokens=1,* delims=|` convention already used
-  by `PowerState-Check.ps1`.
+- **`SystemIdentity-Check.ps1`** — reads three classes, prints a
+  `Key|Value` report (`Manufacturer`, `Model`, `ProductID`,
+  `SerialNumber`, `BiosVersion`) — same `tokens=1,* delims=|`
+  convention already used by `PowerState-Check.ps1`.
 - **`SystemIdentity-Check.bat`** — wraps the `.ps1` the same way
   `PowerState-Check.bat` wraps its own: one `for /f` loop, sets each
   key as a batch variable.
@@ -76,44 +76,37 @@ changes, remember to update both copies.
 ## Example output
 
 Confirmed on real hardware (a Dell Latitude 5530, WinPE, 2026-09-06):
-running the script (as `info.bat` in that test) printed
+running the script printed
 
 ```
 Manufacturer: Dell Inc.
 Model: Latitude 5530
+Product ID: 0CHX27
 Serial Number: HGH5ML3
 BIOS Version: 1.36.0
 ```
 
-— matching `Get-CimInstance` exactly, confirming the mechanism works
-in this WinPE image. `SerialNumber` is redacted below (`XXXXXXX`) — a
-Service Tag identifies one specific physical machine, and the real
-value was committed here by mistake earlier, see note below.
+`ProductID` (`Win32_BaseBoard.Product`) came back as `0CHX27` — 6
+alphanumeric characters, matching the format of real driver-pack
+dispatch codes seen elsewhere for other models. This particular test
+machine isn't itself a fleet-managed device, so there's no catalog
+entry to match this exact value against, but the format lines up with
+the earlier confirmed-wrong `SystemSKUNumber` result (`0B06`, only 4
+characters) clearly not doing so.
 
-The two consolidated `wmic` calls, `/format:list` output (same real
-Manufacturer/Model/BiosVersion, for comparison against the wmic-based
-approach `Dell-SetBootSettings.bat` already uses):
+`SerialNumber` is redacted below (`XXXXXXX`) — a Service Tag
+identifies one specific physical machine, and the real value was
+committed here by mistake earlier, see note below. `ProductID`
+identifies a board/SKU design shared across many units, not one
+specific machine, so it's shown as-is.
 
-```
-C:\> wmic computersystem get manufacturer,model /format:list
-
-Manufacturer=Dell Inc.
-Model=Latitude 5530
-
-
-C:\> wmic bios get serialnumber,smbiosbiosversion /format:list
-
-SerialNumber=XXXXXXX
-SMBIOSBIOSVersion=1.36.0
-
-```
-
-`SystemIdentity-Check.ps1` run directly (one process, both classes):
+`SystemIdentity-Check.ps1` run directly (one process, three classes):
 
 ```
 C:\> powershell -NoProfile -ExecutionPolicy Bypass -File SystemIdentity-Check.ps1
 Manufacturer|Dell Inc.
 Model|Latitude 5530
+ProductID|0CHX27
 SerialNumber|XXXXXXX
 BiosVersion|1.36.0
 ```
@@ -125,6 +118,7 @@ labels by the `for /f "tokens=1,* delims=|"` loop:
 C:\> SystemIdentity-Check.bat
 Manufacturer: Dell Inc.
 Model: Latitude 5530
+Product ID: 0CHX27
 Serial Number: XXXXXXX
 BIOS Version: 1.36.0
 ```
@@ -156,13 +150,16 @@ as part of this fix).
 - Still not wired into `VendorDispatch/VendorDispatch.bat` or
   `Dell/Dell-SetBootSettings.bat` — both still have their own inline,
   single-field detection.
-- **Tried and removed: a `ProductID` field (`SystemSKUNumber`).**
-  Tested on real hardware (Latitude 5530) — it does return a value,
-  but confirmed not to match the short product code a real driver-pack
-  dispatch system would key on for this same model, so it wasn't
-  serving its intended purpose. This also lines up with Dell's own
-  public guidance that this kind of code isn't reliably accessible via
-  a plain WMI query in the first place, and recommends matching by
-  `Name` (i.e. `Model`, which this script already reads) instead
-  ([Dell Driver Pack Catalog
-  KB](https://www.dell.com/support/kbdoc/en-us/000122176/driver-pack-catalog)).
+- **`ProductID` switched from `SystemSKUNumber` to
+  `Win32_BaseBoard.Product`.** The first attempt
+  (`Win32_ComputerSystem.SystemSKUNumber`) was tested on real hardware
+  and confirmed wrong (`0B06`, 4 characters, not matching the 6-
+  character format real driver-pack dispatch codes use). Switched to
+  `Win32_BaseBoard.Product`, confirmed on the same real hardware to
+  return a value in the right format (`0CHX27`, 6 characters) - not
+  verified against an exact catalog entry, since this particular test
+  machine isn't itself a fleet-managed device. Not wired into
+  `HP/HP-ProBook-BiosCheck-v6.bat`'s logging - decided this level of
+  precision isn't needed for BIOS settings/flash dispatch (unlike
+  driver-pack matching, where a single model name can cover multiple
+  hardware revisions needing different packages).

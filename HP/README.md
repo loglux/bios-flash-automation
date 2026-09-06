@@ -37,13 +37,48 @@ come from the real deployment environment, not this repo).
 Everything is logged with plain `echo` to the console only — nothing
 persists to a file, so this output is lost once the console closes.
 
-The four `.ps1` helpers next to it (`HP-ProBook-GetBiosValue.ps1`,
-`HP-ProBook-CheckBootOrderFirst.ps1`, `HP-ProBook-FindConfigLine.ps1`,
-`SystemIdentity-Check.ps1`) are its real, confirmed dependencies —
-`GetBiosValue` reads simple enum-style settings (Fast Boot, Startup
-Delay, the CA key), `CheckBootOrderFirst`/`FindConfigLine` exist
-specifically because Boot Order is a *list* setting that can't be
-fixed with a single `/setvalue` the way the others can.
+## The four `.ps1` scripts next to it
+
+`v6.bat` doesn't touch BCU directly for anything except the simplest
+`/setvalue` calls — reading a setting's current value, or handling
+Boot Order specifically, is delegated to these four scripts. All four
+take their input via environment variables set by the calling `.bat`
+(`_pname`, etc.), not command-line arguments — keeps the `call`
+sites in `v6.bat` simple, and matches the convention `GetBiosValue`
+itself was written to (see its own comment).
+
+- **`SystemIdentity-Check.ps1`** — not HP-specific, shared with
+  `Dell/`/`VendorDispatch/` (see `SystemIdentity/README.md` for the
+  full detail). Reads Manufacturer/Model/BiosVersion via
+  `Get-CimInstance`, prints `Key|Value` lines. Used once, in STEP 1,
+  to get the current BIOS version and to defensively confirm the
+  manufacturer is HP before doing anything else.
+- **`HP-ProBook-GetBiosValue.ps1`** — reads **one** BIOS setting via
+  `BiosConfigUtility64.exe /getvalue`. Two modes: `Raw` (the setting's
+  full `CDATA` content, whatever it is) and `Enum` (for settings that
+  are a comma-separated list of choices with the current one marked
+  `*`, like `Fast Boot`: extracts just that marked choice). This is
+  the read half of `:CheckAndFixSimpleSetting` in `v6.bat` — used for
+  Fast Boot, Startup Delay, and the "Enable MS UEFI CA key" gate. The
+  write half is a plain `/setvalue` call, no script needed for that.
+- **`HP-ProBook-CheckBootOrderFirst.ps1`** — Boot Order is a
+  **list**, not a single enum value, so it needs its own check: reads
+  the list, prints `MATCH|<entry>` if the first entry looks like the
+  boot USB, `NOMATCH|<entry>` otherwise, `ERROR|` if the setting
+  couldn't be read at all. This is what `:CheckAndFixBootOrder` uses
+  to decide whether Boot Order needs fixing in the first place.
+- **`HP-ProBook-FindConfigLine.ps1`** — the actual *fix* for Boot
+  Order, once `CheckBootOrderFirst` says it's needed. Unlike the
+  simple settings, a list can't be changed with one `/setvalue` — BCU
+  has to dump the whole config to a file (`/GetConfig`), the right
+  line inside the `UEFI Boot Order` block gets moved to the top, then
+  the whole file is re-imported (`/SetConfig`). This script is the
+  "which line" part of that: given a block header and a regex, it
+  returns the first matching line (used to find the USB entry when
+  fixing) or, with `-Exclude`, the first **non**-matching line (used
+  in STEP 3 to find a non-USB/non-network entry when resetting back
+  to disk-first before handing off to `C.bat`). The line-swapping
+  itself happens in `v6.bat`, not in this script.
 
 ---
 
@@ -72,14 +107,6 @@ fixed with a single `/setvalue` the way the others can.
   (living only on the USB drive) can't restart itself. STEP 1's check
   before the flash is the only protection in place. Observed on
   hardware during on-site testing.
-
----
-
-## Desktop shortcuts for remote configuration
-
-Not part of the BIOS pipeline above — a separate proposal for the
-imaging process around it, now in its own `DesktopShortcuts/`
-subfolder with its own README.
 
 ---
 

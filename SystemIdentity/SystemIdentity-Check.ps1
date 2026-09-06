@@ -1,24 +1,26 @@
 # Diagnostic only, for now - reports the brand/model-agnostic facts
 # every pipeline needs before it can pick a procedure: manufacturer,
-# model, SKU/product ID, serial/service tag, and current BIOS version.
+# model, baseboard product code, serial/service tag, and current BIOS
+# version.
 #
-# Win32_ComputerSystem gives Manufacturer + Model + SystemSKUNumber
-# together; Win32_BIOS gives SerialNumber + SMBIOSBIOSVersion together
-# - two CIM classes, so two calls, but both already needed separately
+# Win32_ComputerSystem gives Manufacturer + Model together;
+# Win32_BIOS gives SerialNumber + SMBIOSBIOSVersion together - two
+# CIM classes, so two calls, but both already needed separately
 # elsewhere (HP's own BiosCheck scripts read SMBIOSBIOSVersion this
 # same way) and now read once, here, instead of per-caller.
 #
-# SystemSKUNumber is a candidate for the short Product ID code the
-# real fleet's own dispatch table (STARTXUEFI85.bat) keys on (e.g.
-# HP's own platform string shows "8DF7" for this exact model) - not
-# yet confirmed on real hardware that this field is the same code, so
-# treat it as unverified until checked.
+# Win32_BaseBoard.Product is a third class/call, added separately - a
+# short product code, previously confirmed on real Dell hardware to
+# match the code a real driver-pack dispatch system keys on for that
+# exact model (unlike Win32_ComputerSystem.SystemSKUNumber, tried
+# first and confirmed wrong - see SystemIdentity/README.md).
 
-$cs   = Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction SilentlyContinue
-$bios = Get-CimInstance -ClassName Win32_BIOS            -ErrorAction SilentlyContinue
+$cs        = Get-CimInstance -ClassName Win32_ComputerSystem -ErrorAction SilentlyContinue
+$bios      = Get-CimInstance -ClassName Win32_BIOS            -ErrorAction SilentlyContinue
+$baseboard = Get-CimInstance -ClassName Win32_BaseBoard       -ErrorAction SilentlyContinue
 
 Write-Output "Manufacturer|$($cs.Manufacturer)"
 Write-Output "Model|$($cs.Model)"
-Write-Output "ProductID|$($cs.SystemSKUNumber)"
+Write-Output "ProductID|$($baseboard.Product)"
 Write-Output "SerialNumber|$($bios.SerialNumber)"
 Write-Output "BiosVersion|$($bios.SMBIOSBIOSVersion)"

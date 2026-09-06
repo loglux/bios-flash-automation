@@ -2,9 +2,9 @@
 
 Vendor-agnostic logic shared between `VendorDispatch/`, `HP/`, and
 `Dell/`: reads the brand/model-agnostic facts every pipeline needs
-before it can pick a procedure — manufacturer, model, SKU/product ID,
-serial/service tag, and current BIOS version — in one place, instead
-of each caller re-implementing its own WMI/CIM calls.
+before it can pick a procedure — manufacturer, model, serial/service
+tag, and current BIOS version — in one place, instead of each caller
+re-implementing its own WMI/CIM calls.
 
 Status: the `Get-CimInstance` mechanism is confirmed working on real
 hardware (a Dell Latitude 5530, 2026-09-06 - see Example output
@@ -60,9 +60,9 @@ each `wmic.exe` call as free:
 ## The scripts
 
 - **`SystemIdentity-Check.ps1`** — reads both classes, prints a
-  `Key|Value` report (`Manufacturer`, `Model`, `ProductID`,
-  `SerialNumber`, `BiosVersion`) — same `tokens=1,* delims=|`
-  convention already used by `PowerState-Check.ps1`.
+  `Key|Value` report (`Manufacturer`, `Model`, `SerialNumber`,
+  `BiosVersion`) — same `tokens=1,* delims=|` convention already used
+  by `PowerState-Check.ps1`.
 - **`SystemIdentity-Check.bat`** — wraps the `.ps1` the same way
   `PowerState-Check.bat` wraps its own: one `for /f` loop, sets each
   key as a batch variable.
@@ -89,14 +89,6 @@ BIOS Version: 1.36.0
 in this WinPE image. `SerialNumber` is redacted below (`XXXXXXX`) — a
 Service Tag identifies one specific physical machine, and the real
 value was committed here by mistake earlier, see note below.
-
-`ProductID` (`Win32_ComputerSystem.SystemSKUNumber`) was added after
-this real test ran, so its actual value hasn't been captured on real
-hardware yet — not shown in the transcript above, and not included in
-the wmic/`.ps1`/`.bat` output blocks below either, to avoid presenting
-an unverified value as if it were confirmed the way the other fields
-are (see the earlier mistake with a fabricated `BiosVersion` in this
-same section - not repeating that).
 
 The two consolidated `wmic` calls, `/format:list` output (same real
 Manufacturer/Model/BiosVersion, for comparison against the wmic-based
@@ -164,9 +156,13 @@ as part of this fix).
 - Still not wired into `VendorDispatch/VendorDispatch.bat` or
   `Dell/Dell-SetBootSettings.bat` — both still have their own inline,
   single-field detection.
-- **`ProductID` (`SystemSKUNumber`) is unverified** — added as a
-  candidate for the short Product ID code the real fleet's dispatch
-  table (`STARTXUEFI85.bat`) keys on (HP's own platform string shows
-  `8DF7` for this exact model), but not yet confirmed on real hardware
-  that this WMI field actually returns that same code, for either
-  vendor.
+- **Tried and removed: a `ProductID` field (`SystemSKUNumber`).**
+  Tested on real hardware (Latitude 5530) — it does return a value,
+  but confirmed not to match the short product code a real driver-pack
+  dispatch system would key on for this same model, so it wasn't
+  serving its intended purpose. This also lines up with Dell's own
+  public guidance that this kind of code isn't reliably accessible via
+  a plain WMI query in the first place, and recommends matching by
+  `Name` (i.e. `Model`, which this script already reads) instead
+  ([Dell Driver Pack Catalog
+  KB](https://www.dell.com/support/kbdoc/en-us/000122176/driver-pack-catalog)).

@@ -13,10 +13,11 @@ to cover multiple vendors and models.
   root of the USB drive: detects the vendor (HP or Dell), then hands
   off to that vendor's own pipeline below. Draft, not yet run on real
   hardware.
-- **`HP/`** — the mature, hardware-tested pipeline (`HP-ProBook-BiosCheck-v1.bat`
-  through `v6.bat`, each version kept as-is once shipped). Covers one
-  real model (HP ProBook 4 G1ah14): version check → flash → security
-  settings → boot-order reset → imaging handoff.
+- **`HP/`** — the mature, hardware-tested pipeline (`HP-ProBook-BiosCheck-v6.bat`
+  is current; `v1.bat` through `v5.bat` kept in `HP/Legacy/`, each
+  version untouched once shipped). Covers one real model (HP ProBook
+  4 G1ah14): version check → flash → security settings → boot-order
+  reset → imaging handoff.
 - **`Dell/`** — vendor/model detection + BIOS settings via Dell Command |
   Configure (`cctk.exe`). No flash step exists yet — confirmed no Dell
   BIOS flashing happens anywhere in the real fleet's own tooling

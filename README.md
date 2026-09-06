@@ -42,12 +42,11 @@ for that piece.
 
 ---
 
-## Concept: universal model/procedure selection (not built yet)
+## Concept: universal model/procedure selection
 
-A future direction, not yet implemented - a brainstorm worth writing
-down. The idea splits model handling into three separate concerns,
-instead of blending them the way `v6.bat` currently does (it has its
-own HP-only check baked directly into the procedure itself):
+Splits model handling into three separate concerns, instead of
+blending them the way `v6.bat` currently does (it has its own HP-only
+check baked directly into the procedure itself):
 
 1. **A models list** - a CSV catalog of every known machine: Product
    ID, Model name, Vendor. Doesn't exist yet as its own file; model
@@ -58,9 +57,11 @@ own HP-only check baked directly into the procedure itself):
    procedure on no match. `VendorDispatch/` is an early, partial version
    of this today, but only at the vendor level (HP vs Dell), not
    per-model.
-3. **The procedures themselves** - `v6.bat`, `Dell-SetBootSettings.bat`,
-   etc. - stay focused on doing the work, not on deciding whether they
-   should run at all.
+3. **The procedure itself** - whatever set of scripts a given model
+   actually needs (state checks, specific steps in sequence), named
+   cleanly by model (e.g. `hp_<model>`, `dell_<model>`) rather than by
+   version number - stays focused on doing the work, not on deciding
+   whether it should run at all.
 
 The detection step (1+2) runs fresh on **every single launch** - this
 is deliberate, not a missed optimization. WinPE has no memory across

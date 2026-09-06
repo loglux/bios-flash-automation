@@ -33,6 +33,30 @@ new script.
 
 ---
 
+## The scripts
+
+- **`Dell-SetBootSettings.bat`** — the main script. STEP 0: detects
+  Manufacturer/Model/Service Tag (`wmic` + PowerShell `-match`, same
+  pattern the HP scripts use), aborts if the manufacturer isn't Dell.
+  STEP 1: snapshots **every** current BIOS setting via `cctk -O`
+  before changing anything, so the machine can be restored later.
+  STEP 2: applies `--Fastboot=Thorough`, `--ExtPostTime=5s`, and sets
+  Boot Order to put USB first — using `Dell-FindUsbBootDevice.ps1` to
+  find the right device name rather than assuming one.
+- **`Dell-FindUsbBootDevice.ps1`** — helper called from STEP 2. The
+  USB flash drive's `cctk` Boot Order short-form isn't a fixed
+  constant across machines (confirmed `usbhdd`, not the assumed
+  `usbdev`, on a real Latitude 5530) — this reads the live Boot Order
+  table and picks out whichever entry is actually the USB device,
+  reading column positions from the table's own header line rather
+  than assuming them (so a device named e.g. "USB Hard Disk" doesn't
+  false-match a plain keyword search).
+- **`Dell-RestoreBootSettings.bat`** — restores the snapshot
+  `Dell-SetBootSettings.bat`'s STEP 1 made (`cctk -i` the backup
+  `.ini`). DRAFT, not yet verified on real hardware.
+
+---
+
 ## Planned approach
 
 ### 1. Vendor + model detection

@@ -9,9 +9,10 @@ REM Finds the boot USB's firmware entry (by excluding entries that look
 REM like a network controller) and sets a one-time BootNext override on
 REM it via bcdedit, so it can be run and checked on its own.
 REM
-REM How to use: run this, then do an ordinary reboot (e.g. "shutdown /r"
-REM or a normal restart) - no BIOS flash needed. If bootsequence works,
-REM the machine should land back on this same USB drive one more time.
+REM How to use: run this, then reboot - "shutdown /r" if testing from
+REM full Windows, "wpeutil reboot" if testing from WinPE (confirmed
+REM "shutdown" doesn't work there). If bootsequence works, the machine
+REM should land back on this same USB drive one more time.
 REM See experimental/BCDEdit-BootSequence-Notes.md for background.
 REM
 REM bcdedit /bootsequence reference (Microsoft Learn):
@@ -57,7 +58,8 @@ if !errorlevel! neq 0 (
 )
 
 echo OK: one-time BootNext set to %found_id%.
-echo Now reboot manually to test it, for example:
-echo     shutdown /r /t 5
+echo Now reboot manually to test it:
+echo     shutdown /r /t 5     (full Windows)
+echo     wpeutil reboot       (WinPE - "shutdown" doesn't work there)
 echo Then check where the machine lands - back on this USB drive means
 echo bootsequence worked.

@@ -48,6 +48,7 @@ set "PS_SYSID=%~dp0SystemIdentity-Check.ps1"
 
 set "Manufacturer="
 set "Model="
+set "ProductID="
 set "SerialNumber="
 set "BiosVersion="
 for /f "tokens=1,* delims=|" %%A in ('powershell -NoProfile -ExecutionPolicy Bypass -File "%PS_SYSID%"') do (
@@ -60,7 +61,7 @@ if not defined biosver (
     exit /b 1
 )
 
-echo Manufacturer: %Manufacturer%   Model: %Model%   BIOS Version: !biosver!
+echo Manufacturer: %Manufacturer%   Model: %Model%   Product ID: %ProductID%   BIOS Version: !biosver!
 
 REM Defense in depth - VendorDispatch.bat already checks this before
 REM calling this script, but this script can also be run directly.

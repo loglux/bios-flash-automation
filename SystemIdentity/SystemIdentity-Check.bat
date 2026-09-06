@@ -13,5 +13,6 @@ for /f "tokens=1,* delims=|" %%A in ('powershell -NoProfile -ExecutionPolicy Byp
 
 echo Manufacturer: !Manufacturer!
 echo Model: !Model!
+echo Product ID: !ProductID!
 echo Serial Number: !SerialNumber!
 echo BIOS Version: !BiosVersion!

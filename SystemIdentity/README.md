@@ -6,8 +6,10 @@ before it can pick a procedure — manufacturer, model, serial/service
 tag, and current BIOS version — in one place, instead of each caller
 re-implementing its own WMI/CIM calls.
 
-Status: draft, not run on real hardware yet, not wired into any
-pipeline.
+Status: the `Get-CimInstance` mechanism is confirmed working on real
+hardware (a Dell Latitude 5530, 2026-09-06 - see Example output
+below). Not yet wired into any pipeline besides logging in
+`HP/HP-ProBook-BiosCheck-v6.bat`.
 
 ---
 
@@ -67,11 +69,24 @@ each `wmic.exe` call as free:
 
 ## Example output
 
-The two consolidated `wmic` calls, `/format:list` output (real
-Manufacturer/Model/BiosVersion from a Dell Latitude 5530 tested
-earlier in this project; `SerialNumber` replaced with a placeholder —
-a Service Tag identifies one specific physical machine, and the real
-value was committed here by mistake, see note below):
+Confirmed on real hardware (a Dell Latitude 5530, WinPE, 2026-09-06):
+running the script (as `info.bat` in that test) printed
+
+```
+Manufacturer: Dell Inc.
+Model: Latitude 5530
+Serial Number: HGH5ML3
+BIOS Version: 1.36.0
+```
+
+— matching `Get-CimInstance` exactly, confirming the mechanism works
+in this WinPE image. `SerialNumber` is redacted below (`XXXXXXX`) — a
+Service Tag identifies one specific physical machine, and the real
+value was committed here by mistake earlier, see note below.
+
+The two consolidated `wmic` calls, `/format:list` output (same real
+Manufacturer/Model/BiosVersion, for comparison against the wmic-based
+approach `Dell-SetBootSettings.bat` already uses):
 
 ```
 C:\> wmic computersystem get manufacturer,model /format:list
@@ -83,7 +98,7 @@ Model=Latitude 5530
 C:\> wmic bios get serialnumber,smbiosbiosversion /format:list
 
 SerialNumber=XXXXXXX
-SMBIOSBIOSVersion=1.14.0
+SMBIOSBIOSVersion=1.36.0
 
 ```
 
@@ -94,7 +109,7 @@ C:\> powershell -NoProfile -ExecutionPolicy Bypass -File SystemIdentity-Check.ps
 Manufacturer|Dell Inc.
 Model|Latitude 5530
 SerialNumber|XXXXXXX
-BiosVersion|1.14.0
+BiosVersion|1.36.0
 ```
 
 `SystemIdentity-Check.bat` run — same data, parsed into readable
@@ -105,7 +120,7 @@ C:\> SystemIdentity-Check.bat
 Manufacturer: Dell Inc.
 Model: Latitude 5530
 Serial Number: XXXXXXX
-BIOS Version: 1.14.0
+BIOS Version: 1.36.0
 ```
 
 ## Privacy note
@@ -120,15 +135,15 @@ as part of this fix).
 
 ## Not yet done
 
-- Not run on real hardware.
 - **Now wired into `HP/HP-ProBook-BiosCheck-v6.bat`** (STEP 1): its
   BIOS-version read was switched from a standalone
   `wmic bios get smbiosbiosversion` call to this shared module, which
   also now logs Manufacturer/Model and defensively re-checks
-  Manufacturer == HP. This means v6's otherwise mature,
-  hardware-tested pipeline now has one untested dependency in its
-  very first step — worth a real hardware pass specifically on this
-  before trusting v6 in the field again.
+  Manufacturer == HP. The script itself is confirmed working
+  standalone (see Example output above), but that specific wiring
+  inside v6 hasn't been re-run as a whole on real hardware since it
+  was added — worth a pass on that before trusting v6 in the field
+  again.
 - Still not wired into `VendorDispatch/VendorDispatch.bat` or
   `Dell/Dell-SetBootSettings.bat` — both still have their own inline,
   single-field detection.

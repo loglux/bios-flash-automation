@@ -31,10 +31,11 @@ not built yet)"), now actually written.
 The HP branch launches a mature, extensively tested pipeline (v6 —
 version check → flash → security settings → boot-order reset →
 imaging handoff) — though its version-check step now reads
-Manufacturer/Model/BiosVersion via `SystemIdentity/`, which itself
-hasn't been run on real hardware yet (see `SystemIdentity/README.md`),
-so that first step specifically needs a fresh hardware pass. The Dell
-branch currently launches only
+Manufacturer/Model/BiosVersion via `SystemIdentity/`. That module's
+`Get-CimInstance` mechanism is confirmed working standalone on real
+hardware (see `SystemIdentity/README.md`), but its wiring into v6
+specifically hasn't been re-run as a whole since it was added. The
+Dell branch currently launches only
 `Dell-SetBootSettings.bat`, which is *just* the vendor/model
 detection + boot-settings + backup piece — there's no Dell equivalent
 yet of the BIOS-version check, the actual flash step, or the

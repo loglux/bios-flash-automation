@@ -22,11 +22,11 @@ to cover multiple vendors and models.
   BIOS flashing happens anywhere in the real fleet's own tooling
   either, only settings.
 - **`SystemIdentity/`** — vendor-agnostic Manufacturer/Model/SerialNumber/
-  BiosVersion check, shared instead of re-implemented per script. Draft,
-  not tested on real hardware; currently wired into `HP/HP-ProBook-BiosCheck-v6.bat`
-  for logging only (doesn't affect its behavior), not yet into
-  `VendorDispatch/` or `Dell/` despite being built to replace their own
-  inline detection.
+  BiosVersion check, shared instead of re-implemented per script.
+  Confirmed working on real hardware; currently wired into
+  `HP/HP-ProBook-BiosCheck-v6.bat` for logging only (doesn't affect its
+  behavior), not yet into `VendorDispatch/` or `Dell/` despite being
+  built to replace their own inline detection.
 - **`PowerState/`** — vendor-agnostic pre-flash AC/battery safety check,
   with a possible wait-and-recheck delay for battery charge. Both HP's
   and Dell's own flash tools refuse to run on bad power state; this
@@ -36,12 +36,6 @@ to cover multiple vendors and models.
   this is a logical inference, not a confirmed fact, and still needs a
   real test to settle. Draft, not tested on real hardware, script
   itself still likely to change once that's confirmed.
-
-## Status at a glance
-
-Only `HP/` (`v6.bat`) has been verified end-to-end on real hardware.
-Everything else - `VendorDispatch/`, `SystemIdentity/`, `PowerState/`,
-and the Dell side - is a draft that hasn't run on real hardware yet.
 
 Each folder's own README has the full detail, sourcing, and open gaps
 for that piece.
